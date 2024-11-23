@@ -22,3 +22,5 @@ import { ConfigFileNotFoundError, ConfigLoadError, ConfigValidationError } from 
         process.exit(1);
     }
 })();
+
+export * from "./types";
