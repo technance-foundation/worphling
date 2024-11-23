@@ -1,16 +1,21 @@
 import path from "path";
 import fs from "fs";
 import { Config } from "./types";
-import { DEFAULT_CONFIG } from "./constants";
+import { ConfigValidationError, ConfigFileNotFoundError, ConfigLoadError } from "./errors";
 
 export class ConfigLoader {
-    private config: Config;
+    private config: Config | null;
 
     constructor() {
-        this.config = DEFAULT_CONFIG;
+        this.config = null;
     }
 
     public getConfig(): Config {
+        if (!this.config) {
+            throw new ConfigValidationError(
+                "Configuration has not been loaded. Please ensure a valid configuration file is present."
+            );
+        }
         return this.config;
     }
 
@@ -18,29 +23,32 @@ export class ConfigLoader {
         const configFilePath = path.resolve("worphling.config.js");
 
         if (!fs.existsSync(configFilePath)) {
-            console.warn("No worphling.config.js found. Using default configuration.");
-            this.config = DEFAULT_CONFIG;
-            return this.config;
+            throw new ConfigFileNotFoundError(configFilePath);
         }
 
         try {
-            const loadedConfig: { default?: Config } = await import(configFilePath);
+            const loadedConfig: { default: Config } = await import(configFilePath);
+            const config = loadedConfig.default || loadedConfig;
 
-            this.config = {
-                ...DEFAULT_CONFIG,
-                ...(loadedConfig.default || loadedConfig),
-            } satisfies Config;
-
+            this.validate(config);
+            this.config = config;
             return this.config;
         } catch (error) {
-            const message = [
-                `Error loading configuration file at ${configFilePath}`,
-                error instanceof Error ? error.message : false,
-            ]
-                .filter(Boolean)
-                .join("\n");
+            if (error instanceof ConfigValidationError) {
+                throw error;
+            }
+            const reason = error instanceof Error ? error.message : "Unknown error";
+            throw new ConfigLoadError(configFilePath, reason);
+        }
+    }
 
-            throw new Error(message);
+    private validate(config: Partial<Config>): void {
+        const requiredKeys: (keyof Config)[] = ["apiKey", "sourceFile"];
+
+        for (const key of requiredKeys) {
+            if (!config[key]) {
+                throw new ConfigValidationError(`Invalid configuration: Missing required key "${key}".`);
+            }
         }
     }
 }
