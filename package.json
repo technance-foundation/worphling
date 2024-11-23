@@ -5,6 +5,7 @@
     ],
     "scripts": {
         "build": "pnpm -r build",
+        "dev": "pnpm -r dev",
         "prepare": "pnpm run build",
         "playground": "pnpm --filter @invexa/worphling-playground start"
     }
