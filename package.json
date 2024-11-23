@@ -1,32 +1,11 @@
 {
-    "name": "@invexa/worphling",
-    "version": "0.0.0",
-    "description": "Simplify your translation workflow using Worphling. Synchronize translations and automate.",
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts",
-    "type": "module",
-    "bin": {
-        "worphling": "dist/index.js"
-    },
-    "scripts": {
-        "build": "tsup",
-        "start": "node dist/index.js",
-        "test": "echo \"Error: no test specified\" && exit 1",
-        "playground": "pnpm run playground:prepare && cd playground && node index.js",
-        "playground:prepare": "pnpm run build && pnpm link --dir playground && cd playground && pnpm install"
-    },
-    "keywords": [
-        "translation",
-        "cli",
-        "automation",
-        "localization",
-        "i18n"
+    "private": true,
+    "workspaces": [
+        "packages/*"
     ],
-    "author": "Invexa <hello@invexa.io>",
-    "license": "UNLICENSED",
-    "devDependencies": {
-        "@types/node": "^22.9.3",
-        "tsup": "^8.3.5",
-        "typescript": "^5.7.2"
+    "scripts": {
+        "build": "pnpm -r build",
+        "prepare": "pnpm run build",
+        "playground": "pnpm --filter @invexa/worphling-playground start"
     }
 }

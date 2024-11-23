@@ -1,9 +1,12 @@
 {
     "dependencies": {
-        "@invexa/worphling": "link:/home/mohammadxali/projects/invexa/worphling"
+        "@invexa/worphling": "workspace:*"
     },
     "name": "@invexa/worphling-playground",
     "private": true,
+    "scripts": {
+        "start": "node index.js"
+    },
     "type": "module",
     "version": "0.0.0"
 }
