@@ -1,5 +1,8 @@
 {
     "author": "Invexa <hello@invexa.io>",
+    "bin": {
+        "worphling": "dist/index.js"
+    },
     "description": "Simplify your translation workflow using Worphling. Synchronize translations and automate.",
     "devDependencies": {
         "@types/node": "^22.9.3",
