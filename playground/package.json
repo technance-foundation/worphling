@@ -1,0 +1,9 @@
+{
+    "dependencies": {
+        "@invexa/worphling": "link:/home/mohammadxali/projects/invexa/worphling"
+    },
+    "name": "@invexa/worphling-playground",
+    "private": true,
+    "type": "module",
+    "version": "0.0.0"
+}

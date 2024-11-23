@@ -11,7 +11,9 @@
     "scripts": {
         "build": "tsup",
         "start": "node dist/index.js",
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "playground": "pnpm run playground:prepare && cd playground && node index.js",
+        "playground:prepare": "pnpm run build && pnpm link --dir playground && cd playground && pnpm install"
     },
     "keywords": [
         "translation",
