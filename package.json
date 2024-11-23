@@ -1,0 +1,13 @@
+{
+    "name": "@invexa/worphling",
+    "version": "0.0.0",
+    "description": "Simplify your translate workflow using Worphling. Synchronize translations and automate.",
+    "main": "index.js",
+    "type": "module",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "Invexa <hello@invexa.io>",
+    "license": "UNLICENSED"
+}
