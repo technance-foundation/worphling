@@ -11,6 +11,7 @@
     "author": "Invexa <hello@invexa.io>",
     "license": "UNLICENSED",
     "devDependencies": {
+        "@types/node": "^22.9.3",
         "typescript": "^5.7.2"
     }
 }
