@@ -1,0 +1,32 @@
+{
+    "author": "Invexa <hello@invexa.io>",
+    "description": "Simplify your translation workflow using Worphling. Synchronize translations and automate.",
+    "devDependencies": {
+        "@types/node": "^22.9.3",
+        "tsup": "^8.3.5",
+        "typescript": "^5.7.2"
+    },
+    "exports": {
+        ".": "./dist/index.js"
+    },
+    "files": [
+        "dist"
+    ],
+    "keywords": [
+        "translation",
+        "cli",
+        "automation",
+        "localization",
+        "i18n"
+    ],
+    "license": "UNLICENSED",
+    "main": "dist/index.js",
+    "name": "@invexa/worphling",
+    "scripts": {
+        "build": "tsup",
+        "start": "node dist/index.js"
+    },
+    "type": "module",
+    "types": "dist/index.d.ts",
+    "version": "0.0.0"
+}
