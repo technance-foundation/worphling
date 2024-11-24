@@ -5,7 +5,7 @@
     "name": "@invexa/worphling-playground",
     "private": true,
     "scripts": {
-        "start": "node index.js"
+        "start": "worphling"
     },
     "type": "module",
     "version": "0.0.0"
