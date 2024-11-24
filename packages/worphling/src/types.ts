@@ -16,4 +16,4 @@ export type LangFiles = Record<string, LangFile>;
 
 export type FlatLangFile = Record<string, string>;
 
-export type FlatLangFiles = Record<string, Record<string, string>>;
+export type FlatLangFiles = Record<string, FlatLangFile>;
