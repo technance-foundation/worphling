@@ -1,9 +1,9 @@
 import { omit } from "lodash-es";
-import { Analyzer } from "../Analyzer";
-import { JsonReader } from "../JsonReader";
+import { LangProcessor } from "../LangProcessor";
+import { JsonProcessor } from "../JsonProcessor";
 import { ConfigLoader } from "./ConfigLoader";
-import { handleErrors } from "./handleErrors";
 import { ANSI_COLORS } from "../constants";
+import { Translator } from "../Translator";
 
 export async function main() {
     const configLoader = new ConfigLoader();
@@ -11,19 +11,25 @@ export async function main() {
     try {
         await configLoader.load();
         const config = configLoader.getConfig();
-        const data = JsonReader.readAll(config.source.directory);
-        const sourceKey = JsonReader.extractLanguageKey(config.source.file);
+        const data = JsonProcessor.readAll(config.source.directory);
+        const sourceKey = JsonProcessor.extractLanguageKey(config.source.file);
         const targets = omit(data, sourceKey);
-        const result = Analyzer.compare(data[sourceKey], targets);
+        const missingLanguages = LangProcessor.findMissingKeys(data[sourceKey], targets);
 
-        if (Object.entries(result).length === 0) {
+        if (Object.entries(missingLanguages).length === 0) {
             console.log(ANSI_COLORS.green, "All target languages are already translated.");
             process.exit(0);
         }
 
-        console.log(result);
+        const translator = new Translator();
+        const translated = translator.translate(missingLanguages);
+        const updatedTargets = LangProcessor.updateTargetLangs(targets, translated);
+        JsonProcessor.writeAll(config.source.directory, updatedTargets);
+        process.exit(0);
     } catch (error) {
-        handleErrors(error);
+        if (error instanceof Error) {
+            console.error("Error:", error.message);
+        }
         process.exit(1);
     }
 }

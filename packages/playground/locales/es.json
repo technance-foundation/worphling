@@ -3,7 +3,6 @@
         "auth": {
             "login": {
                 "buttons": {
-                    "forgotPassword": "¿Olvidaste tu contraseña?",
                     "submit": "Iniciar sesión"
                 },
                 "errors": {
@@ -47,16 +46,6 @@
         }
     },
     "landing": {
-        "errors": {
-            "404": {
-                "message": "La página que buscas no existe.",
-                "title": "Página no encontrada"
-            },
-            "500": {
-                "message": "Algo salió mal. Por favor, inténtalo más tarde.",
-                "title": "Error del servidor"
-            }
-        },
         "general": {
             "title": "Mi aplicación",
             "welcome": "Bienvenido a {appName}"

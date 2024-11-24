@@ -9,3 +9,11 @@ export interface Config {
         directory: string;
     };
 }
+
+export type LangFile = Record<string, any>;
+
+export type LangFiles = Record<string, LangFile>;
+
+export type FlatLangFile = Record<string, string>;
+
+export type FlatLangFiles = Record<string, FlatLangFile>;
