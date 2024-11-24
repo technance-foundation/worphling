@@ -4,6 +4,7 @@ import { JsonProcessor } from "../JsonProcessor";
 import { ConfigLoader } from "./ConfigLoader";
 import { handleErrors } from "./handleErrors";
 import { ANSI_COLORS } from "../constants";
+import { Translator } from "../Translator";
 
 export async function main() {
     const configLoader = new ConfigLoader();
@@ -20,6 +21,11 @@ export async function main() {
             console.log(ANSI_COLORS.green, "All target languages are already translated.");
             process.exit(0);
         }
+
+        const translator = new Translator();
+        const translated = translator.translate(missingLanguages);
+
+        console.log(translated);
     } catch (error) {
         handleErrors(error);
         process.exit(1);
