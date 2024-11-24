@@ -2,7 +2,6 @@ import { omit } from "lodash-es";
 import { LangProcessor } from "../LangProcessor";
 import { JsonProcessor } from "../JsonProcessor";
 import { ConfigLoader } from "./ConfigLoader";
-import { handleErrors } from "./handleErrors";
 import { ANSI_COLORS } from "../constants";
 import { Translator } from "../Translator";
 
@@ -27,7 +26,9 @@ export async function main() {
         const updatedTargets = LangProcessor.updateTargetLangs(targets, translated);
         JsonProcessor.writeAll(config.source.directory, updatedTargets);
     } catch (error) {
-        handleErrors(error);
+        if (error instanceof Error) {
+            console.error("Error:", error.message);
+        }
         process.exit(1);
     }
 }
