@@ -1,4 +1,4 @@
-import { isPlainObject } from "lodash-es";
+import { isPlainObject, merge } from "lodash-es";
 
 type LangFile = Record<string, any>;
 
@@ -26,6 +26,11 @@ export class LangProcessor {
         return result;
     }
 
+    static updateTargetLang(targetLang: LangFile, translatedKeys: Record<string, string>): LangFile {
+        const unflattenedMissingKeys = this.unflatten(translatedKeys);
+        return merge({}, targetLang, unflattenedMissingKeys);
+    }
+
     private static flatten(obj: Record<string, any>, path: string = "", result: Record<string, any> = {}): Record<string, any> {
         for (const [key, value] of Object.entries(obj)) {
             const newPath = path ? `${path}.${key}` : key;
@@ -39,7 +44,7 @@ export class LangProcessor {
         return result;
     }
 
-    static unflatten(obj: Record<string, string>): LangFile {
+    private static unflatten(obj: Record<string, string>): LangFile {
         const result: LangFile = {};
 
         for (const [path, value] of Object.entries(obj)) {
