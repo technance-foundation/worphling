@@ -25,6 +25,7 @@ export async function main() {
         const translated = translator.translate(missingLanguages);
         const updatedTargets = LangProcessor.updateTargetLangs(targets, translated);
         JsonProcessor.writeAll(config.source.directory, updatedTargets);
+        process.exit(0);
     } catch (error) {
         if (error instanceof Error) {
             console.error("Error:", error.message);
