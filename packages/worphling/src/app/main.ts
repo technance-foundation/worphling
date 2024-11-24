@@ -20,6 +20,8 @@ export async function main() {
             console.log(ANSI_COLORS.green, "All target languages are already translated.");
             process.exit(0);
         }
+
+        console.log(result);
     } catch (error) {
         handleErrors(error);
         process.exit(1);
