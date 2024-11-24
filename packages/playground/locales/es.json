@@ -1,0 +1,65 @@
+{
+    "app": {
+        "auth": {
+            "login": {
+                "buttons": {
+                    "forgotPassword": "¿Olvidaste tu contraseña?",
+                    "submit": "Iniciar sesión"
+                },
+                "errors": {
+                    "accountLocked": "Cuenta bloqueada. Contacta con soporte.",
+                    "invalidCredentials": "Credenciales inválidas."
+                },
+                "placeholders": {
+                    "password": "Contraseña",
+                    "username": "Nombre de usuario"
+                },
+                "title": "Iniciar sesión"
+            },
+            "signup": {
+                "agreements": {
+                    "terms": "Acepto los términos y condiciones"
+                },
+                "buttons": {
+                    "submit": "Registrarse"
+                },
+                "placeholders": {
+                    "email": "Correo electrónico",
+                    "password": "Contraseña",
+                    "username": "Nombre de usuario"
+                },
+                "title": "Registrarse"
+            }
+        },
+        "errors": {
+            "404": {
+                "message": "La página que buscas no existe.",
+                "title": "Página no encontrada"
+            },
+            "500": {
+                "message": "Algo salió mal. Por favor, inténtalo más tarde.",
+                "title": "Error del servidor"
+            }
+        },
+        "general": {
+            "title": "Mi aplicación",
+            "welcome": "Bienvenido a {appName}"
+        }
+    },
+    "landing": {
+        "errors": {
+            "404": {
+                "message": "La página que buscas no existe.",
+                "title": "Página no encontrada"
+            },
+            "500": {
+                "message": "Algo salió mal. Por favor, inténtalo más tarde.",
+                "title": "Error del servidor"
+            }
+        },
+        "general": {
+            "title": "Mi aplicación",
+            "welcome": "Bienvenido a {appName}"
+        }
+    }
+}
