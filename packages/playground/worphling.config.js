@@ -1,8 +1,10 @@
 //@ts-check
 /** @type {import('@invexa/worphling').Config} */
 const config = {
-    apiKey: "your-api-key",
-    service: "openai",
+    service: {
+        apiKey: "API_KEY",
+        name: "OpenAI",
+    },
     source: {
         file: "./locales/en.json",
         directory: "./locales",

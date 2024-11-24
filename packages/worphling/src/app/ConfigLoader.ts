@@ -43,7 +43,7 @@ export class ConfigLoader {
     }
 
     private validate(config: Partial<Config>): void {
-        const requiredKeys: (keyof Config)[] = ["apiKey", "source"];
+        const requiredKeys: (keyof Config)[] = ["service", "source"];
 
         for (const key of requiredKeys) {
             if (!config[key]) {
