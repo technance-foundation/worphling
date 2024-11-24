@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { ANSI_COLORS } from "./constants";
 
 export class JsonProcessor {
     static readAll(directoryPath: string): Record<string, any> {
@@ -26,6 +27,7 @@ export class JsonProcessor {
             try {
                 const jsonContent = JSON.stringify(content, null, 2);
                 fs.writeFileSync(filePath, jsonContent, "utf-8");
+                console.log(ANSI_COLORS.green, `Success: File written for language "${langKey}" at ${filePath}`);
             } catch (error) {
                 throw new Error(`Error writing file: ${filePath}, ${error instanceof Error ? error.message : error}`);
             }

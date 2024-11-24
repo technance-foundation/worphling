@@ -25,7 +25,17 @@ export class LangProcessor {
         return result;
     }
 
-    static updateTargetLang(targetLang: LangFile, translatedKeys: FlatLangFile): LangFile {
+    static updateTargetLangs(targetLangs: LangFiles, translatedKeys: FlatLangFiles): LangFiles {
+        const updatedLangs: LangFiles = {};
+
+        for (const [lang, flatTranslatedKeys] of Object.entries(translatedKeys)) {
+            updatedLangs[lang] = this.updateTargetLang(targetLangs[lang] || {}, flatTranslatedKeys);
+        }
+
+        return updatedLangs;
+    }
+
+    private static updateTargetLang(targetLang: LangFile, translatedKeys: FlatLangFile): LangFile {
         const unflattenedMissingKeys = this.unflatten(translatedKeys);
         return merge({}, targetLang, unflattenedMissingKeys);
     }
