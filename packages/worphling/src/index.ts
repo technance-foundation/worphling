@@ -1,18 +1,8 @@
 #!/usr/bin/env node
-import { ConfigLoader } from "./ConfigLoader";
-import { handleErrors } from "./handleErrors";
+export * from "./types";
+
+import { main } from "./app";
 
 (async () => {
-    const configLoader = new ConfigLoader();
-
-    try {
-        await configLoader.load();
-        const config = configLoader.getConfig();
-        console.log("Loaded configuration:", config);
-    } catch (error) {
-        handleErrors(error);
-        process.exit(1);
-    }
+    await main();
 })();
-
-export * from "./types";
