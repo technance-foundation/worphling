@@ -7,7 +7,6 @@
                     "submit": "ورود"
                 },
                 "errors": {
-                    "accountLocked": "حساب کاربری قفل شده است. با پشتیبانی تماس بگیرید.",
                     "invalidCredentials": "اطلاعات وارد شده صحیح نیست."
                 },
                 "placeholders": {
