@@ -38,4 +38,24 @@ export class LangProcessor {
         }
         return result;
     }
+
+    static unflatten(obj: Record<string, string>): LangFile {
+        const result: LangFile = {};
+
+        for (const [path, value] of Object.entries(obj)) {
+            const keys = path.split(".");
+            let current = result;
+
+            keys.forEach((key, index) => {
+                if (index === keys.length - 1) {
+                    current[key] = value;
+                } else {
+                    current[key] = current[key] || {};
+                    current = current[key];
+                }
+            });
+        }
+
+        return result;
+    }
 }
