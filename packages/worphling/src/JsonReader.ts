@@ -26,7 +26,7 @@ export class JsonReader {
             try {
                 const content = fs.readFileSync(filePath, "utf-8");
                 const parsed = JSON.parse(content);
-                const key = path.basename(file, ".json");
+                const key = JsonReader.extractLanguageKey(filePath);
                 result[key] = parsed;
             } catch (error) {
                 throw new Error(`Error reading or parsing file: ${filePath}, ${error instanceof Error ? error.message : error}`);
@@ -34,5 +34,9 @@ export class JsonReader {
         }
 
         return result;
+    }
+
+    static extractLanguageKey(filePath: string): string {
+        return path.basename(filePath, ".json");
     }
 }

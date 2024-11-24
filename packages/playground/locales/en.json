@@ -1,3 +1,65 @@
 {
-    "hello": "hello world!"
+    "app": {
+        "auth": {
+            "login": {
+                "buttons": {
+                    "forgotPassword": "Forgot Password?",
+                    "submit": "Log In"
+                },
+                "errors": {
+                    "accountLocked": "Account locked. Contact support.",
+                    "invalidCredentials": "Invalid credentials"
+                },
+                "placeholders": {
+                    "password": "Password",
+                    "username": "Username"
+                },
+                "title": "Login"
+            },
+            "signup": {
+                "agreements": {
+                    "terms": "I agree to the terms and conditions"
+                },
+                "buttons": {
+                    "submit": "Register"
+                },
+                "placeholders": {
+                    "email": "Email",
+                    "password": "Password",
+                    "username": "Username"
+                },
+                "title": "Sign Up"
+            }
+        },
+        "errors": {
+            "404": {
+                "message": "The page you're looking for doesn't exist.",
+                "title": "Page Not Found"
+            },
+            "500": {
+                "message": "Something went wrong. Please try again later.",
+                "title": "Server Error"
+            }
+        },
+        "general": {
+            "title": "My Application",
+            "welcome": "Welcome to {appName}"
+        }
+    },
+    "landing": {
+        "errors": {
+            "404": {
+                "message": "The page you're looking for doesn't exist.",
+                "title": "Page Not Found"
+            },
+            "500": {
+                "message": "Something went wrong. Please try again later.",
+                "title": "Server Error"
+            }
+        },
+        "general": {
+            "title": "My Application",
+            "welcome": "Welcome to {appName}"
+        }
+    }
 }
