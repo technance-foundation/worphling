@@ -1,8 +1,11 @@
 export interface Config {
-    apiKey: string;
-    service: string;
-    sourceFile: string;
-    outputDir: string;
-    languages: string[];
-    sourceLanguage: string;
+    service: {
+        name: "OpenAI";
+        apiKey: string;
+        model?: string;
+    };
+    source: {
+        file: string;
+        directory: string;
+    };
 }

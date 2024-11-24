@@ -1,12 +1,14 @@
 //@ts-check
 /** @type {import('@invexa/worphling').Config} */
 const config = {
-    apiKey: "your-api-key",
-    service: "openai",
-    sourceFile: "./locales/en.json",
-    outputDir: "./locales",
-    languages: ["es", "fr", "de"],
-    sourceLanguage: "en",
+    service: {
+        apiKey: "API_KEY",
+        name: "OpenAI",
+    },
+    source: {
+        file: "./locales/en.json",
+        directory: "./locales",
+    },
 };
 
 export default config;
