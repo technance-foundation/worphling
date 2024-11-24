@@ -1,3 +1,4 @@
+import { JsonReader } from "../JsonReader";
 import { ConfigLoader } from "./ConfigLoader";
 import { handleErrors } from "./handleErrors";
 
@@ -7,7 +8,8 @@ export async function main() {
     try {
         await configLoader.load();
         const config = configLoader.getConfig();
-        console.log("Loaded configuration:", config);
+        const data = JsonReader.readAll(config.source.directory);
+        console.log(data);
     } catch (error) {
         handleErrors(error);
         process.exit(1);
