@@ -1,6 +1,6 @@
 import { omit } from "lodash-es";
 import { LangProcessor } from "../LangProcessor";
-import { JsonReader } from "../JsonReader";
+import { JsonProcessor } from "../JsonProcessor";
 import { ConfigLoader } from "./ConfigLoader";
 import { handleErrors } from "./handleErrors";
 import { ANSI_COLORS } from "../constants";
@@ -11,8 +11,8 @@ export async function main() {
     try {
         await configLoader.load();
         const config = configLoader.getConfig();
-        const data = JsonReader.readAll(config.source.directory);
-        const sourceKey = JsonReader.extractLanguageKey(config.source.file);
+        const data = JsonProcessor.readAll(config.source.directory);
+        const sourceKey = JsonProcessor.extractLanguageKey(config.source.file);
         const targets = omit(data, sourceKey);
         const missingKeys = LangProcessor.findMissingKeys(data[sourceKey], targets);
 
