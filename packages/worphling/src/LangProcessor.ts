@@ -1,16 +1,15 @@
 import { isPlainObject, merge } from "lodash-es";
-
-type LangFile = Record<string, any>;
+import { FlatLangFile, FlatLangFiles, LangFile, LangFiles } from "./types";
 
 export class LangProcessor {
-    static findMissingKeys(source: LangFile, targets: Record<string, LangFile>): Record<string, Record<string, string>> {
-        const result: Record<string, Record<string, string>> = {};
+    static findMissingKeys(source: LangFile, targets: LangFiles): FlatLangFiles {
+        const result: FlatLangFiles = {};
 
         const flatSource = this.flatten(source);
 
         for (const [lang, target] of Object.entries(targets)) {
             const flatTarget = this.flatten(target);
-            const missingEntries: Record<string, string> = {};
+            const missingEntries: FlatLangFile = {};
 
             for (const [key, value] of Object.entries(flatSource)) {
                 if (!(key in flatTarget)) {
@@ -26,17 +25,17 @@ export class LangProcessor {
         return result;
     }
 
-    static updateTargetLang(targetLang: LangFile, translatedKeys: Record<string, string>): LangFile {
+    static updateTargetLang(targetLang: LangFile, translatedKeys: FlatLangFile): LangFile {
         const unflattenedMissingKeys = this.unflatten(translatedKeys);
         return merge({}, targetLang, unflattenedMissingKeys);
     }
 
-    private static flatten(obj: Record<string, any>, path: string = "", result: Record<string, any> = {}): Record<string, any> {
+    private static flatten(obj: LangFile, path: string = "", result: FlatLangFile = {}): FlatLangFile {
         for (const [key, value] of Object.entries(obj)) {
             const newPath = path ? `${path}.${key}` : key;
 
             if (isPlainObject(value)) {
-                this.flatten(value as Record<string, any>, newPath, result);
+                this.flatten(value as LangFile, newPath, result);
             } else {
                 result[newPath] = value;
             }
@@ -44,10 +43,10 @@ export class LangProcessor {
         return result;
     }
 
-    private static unflatten(obj: Record<string, string>): LangFile {
+    private static unflatten(flatObj: FlatLangFile): LangFile {
         const result: LangFile = {};
 
-        for (const [path, value] of Object.entries(obj)) {
+        for (const [path, value] of Object.entries(flatObj)) {
             const keys = path.split(".");
             let current = result;
 
