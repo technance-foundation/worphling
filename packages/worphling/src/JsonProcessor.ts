@@ -25,7 +25,7 @@ export class JsonProcessor {
             const filePath = path.join(directory, `${langKey}.json`);
 
             try {
-                const jsonContent = JSON.stringify(content, null, 2);
+                const jsonContent = JSON.stringify(content, null, 4);
                 fs.writeFileSync(filePath, jsonContent, "utf-8");
                 console.log(ANSI_COLORS.green, `Success: File written for language "${langKey}" at ${filePath}`);
             } catch (error) {
