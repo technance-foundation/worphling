@@ -2,8 +2,8 @@ import { isPlainObject } from "lodash-es";
 
 type LangFile = Record<string, any>;
 
-export class Analyzer {
-    static compare(source: LangFile, targets: Record<string, LangFile>): Record<string, Record<string, string>> {
+export class LangProcessor {
+    static findMissingKeys(source: LangFile, targets: Record<string, LangFile>): Record<string, Record<string, string>> {
         const result: Record<string, Record<string, string>> = {};
 
         const flatSource = this.flatten(source);
