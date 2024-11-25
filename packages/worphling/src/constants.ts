@@ -3,3 +3,7 @@ export const ANSI_COLORS = {
     red: "\x1b[31m%s\x1b[0m",
     yellow: "\x1b[33m%s\x1b[0m",
 };
+
+export const SUCCESS_STATUS_CODE = 0;
+
+export const ERROR_STATUS_CODE = 1;
