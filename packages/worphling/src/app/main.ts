@@ -1,9 +1,7 @@
 import { omit } from "lodash-es";
-import { LangProcessor } from "../LangProcessor";
-import { JsonProcessor } from "../JsonProcessor";
+import { LangProcessor, JsonProcessor, Translator } from "../core";
 import { ConfigLoader } from "./ConfigLoader";
 import { ANSI_COLORS } from "../constants";
-import { Translator } from "../Translator";
 
 export async function main() {
     const configLoader = new ConfigLoader();

@@ -1,4 +1,4 @@
-import { FlatLangFiles, FlatLangFile } from "./types";
+import { FlatLangFiles, FlatLangFile } from "../types";
 
 export class Translator {
     translate(missingKeys: FlatLangFiles): FlatLangFiles {

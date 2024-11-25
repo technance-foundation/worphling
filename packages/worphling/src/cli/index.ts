@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-export * from "./types";
+export * from "../types";
 
-import { main } from "./app";
+import { main } from "../app";
 
 (async () => {
     await main();

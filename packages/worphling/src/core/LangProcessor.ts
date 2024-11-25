@@ -1,5 +1,5 @@
 import { isPlainObject, merge } from "lodash-es";
-import { FlatLangFile, FlatLangFiles, LangFile, LangFiles } from "./types";
+import { FlatLangFile, FlatLangFiles, LangFile, LangFiles } from "../types";
 
 export class LangProcessor {
     static findMissingKeys(source: LangFile, targets: LangFiles): FlatLangFiles {
