@@ -1,8 +1,10 @@
+import OpenAI from "openai";
+
 export interface Config {
     service: {
         name: "OpenAI";
         apiKey: string;
-        model?: string;
+        model?: OpenAI.Chat.ChatModel;
     };
     source: {
         file: string;
@@ -17,3 +19,5 @@ export type LangFiles = Record<string, LangFile>;
 export type FlatLangFile = Record<string, string>;
 
 export type FlatLangFiles = Record<string, FlatLangFile>;
+
+export type OpenAiMessage = OpenAI.Chat.Completions.ChatCompletionMessageParam;
