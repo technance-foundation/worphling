@@ -23,7 +23,7 @@ export class App {
 
         const translator = new Translator(this.config.service);
         const translated = await translator.translate(missingKeys);
-        const updatedTargets = LangProcessor.updateTargetLangs(targets, translated);
+        const updatedTargets = LangProcessor.updateTargetLangs(targets, translated, data[sourceKey]);
         JsonProcessor.writeAll(this.config.source.directory, updatedTargets);
         return SUCCESS_STATUS_CODE;
     }
