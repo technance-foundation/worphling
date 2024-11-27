@@ -1,4 +1,8 @@
 //@ts-check
+import dotenv from "dotenv";
+
+dotenv.config();
+
 /** @type {import('@invexa/worphling').Config} */
 const config = {
     service: {
