@@ -2,7 +2,7 @@
 /** @type {import('@invexa/worphling').Config} */
 const config = {
     service: {
-        apiKey: "API_KEY",
+        apiKey: String(process.env.OPENAI_API_KEY),
         name: "OpenAI",
     },
     source: {

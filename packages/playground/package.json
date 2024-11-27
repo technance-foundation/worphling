@@ -2,6 +2,9 @@
     "dependencies": {
         "@invexa/worphling": "workspace:*"
     },
+    "devDependencies": {
+        "@types/node": "^22.9.3"
+    },
     "name": "@invexa/worphling-playground",
     "private": true,
     "scripts": {
