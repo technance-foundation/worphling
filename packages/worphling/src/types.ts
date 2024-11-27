@@ -1,8 +1,10 @@
+import OpenAI from "openai";
+
 export interface Config {
     service: {
         name: "OpenAI";
         apiKey: string;
-        model?: string;
+        model?: OpenAI.Chat.ChatModel;
     };
     source: {
         file: string;

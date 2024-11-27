@@ -1,8 +1,12 @@
 //@ts-check
+import dotenv from "dotenv";
+
+dotenv.config();
+
 /** @type {import('@invexa/worphling').Config} */
 const config = {
     service: {
-        apiKey: "API_KEY",
+        apiKey: String(process.env.OPENAI_API_KEY),
         name: "OpenAI",
     },
     source: {
