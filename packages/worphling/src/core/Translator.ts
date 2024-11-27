@@ -74,8 +74,6 @@ export class Translator {
         });
 
         const json = response.choices[0]?.message?.content;
-        console.log(json);
-
         return json || "{}";
     }
 
