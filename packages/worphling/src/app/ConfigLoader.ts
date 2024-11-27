@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs";
 import { Config } from "../types";
-import { ConfigValidationError, ConfigFileNotFoundError, ConfigLoadError } from "./errors";
+import { ConfigValidationError, ConfigFileNotFoundError, ConfigLoadError } from "../errors";
 
 export class ConfigLoader {
     private config: Config | null;
