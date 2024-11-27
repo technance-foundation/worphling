@@ -5,7 +5,7 @@ export class Translator {
     private client: OpenAI;
     private model: string;
 
-    constructor({ apiKey, model = "gpt-4" }: Config["service"]) {
+    constructor({ apiKey, model = "gpt-4o-2024-11-20" }: Config["service"]) {
         this.client = new OpenAI({ apiKey });
         this.model = model;
     }
