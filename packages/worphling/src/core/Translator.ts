@@ -55,6 +55,9 @@ export class Translator {
 
         const response = await this.client.chat.completions.create({
             model: this.model,
+            response_format: {
+                type: "json_object",
+            },
             messages: [
                 {
                     role: "system",
@@ -63,6 +66,7 @@ export class Translator {
                     Always respond with valid JSON format matching the input structure.
                     Example input: ${exampleInput}
                     Example output: ${exampleOutput}
+                    Make sure to not include the response in \`\`\`json block. Your response must be a parse-able json format.
                 `,
                 },
                 {
