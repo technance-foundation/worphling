@@ -19,5 +19,3 @@ export type LangFiles = Record<string, LangFile>;
 export type FlatLangFile = Record<string, string>;
 
 export type FlatLangFiles = Record<string, FlatLangFile>;
-
-export type OpenAiMessage = OpenAI.Chat.Completions.ChatCompletionMessageParam;
