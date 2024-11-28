@@ -1,4 +1,4 @@
-import { isPlainObject, merge } from "lodash-es";
+import { isPlainObject, merge, omit } from "lodash-es";
 import { FlatLangFile, FlatLangFiles, LangFile, LangFiles } from "../types";
 
 export class LangProcessor {
@@ -25,19 +25,32 @@ export class LangProcessor {
         return result;
     }
 
-    static updateTargetLangs(targetLangs: LangFiles, translatedKeys: FlatLangFiles): LangFiles {
+    static removeExtraKeys(source: LangFile, target: LangFile): LangFile {
+        const flatSource = this.flatten(source);
+        const flatTarget = this.flatten(target);
+
+        const keysToRemove = Object.keys(flatTarget).filter((key) => !(key in flatSource));
+
+        const filteredFlatTarget = omit(flatTarget, keysToRemove);
+
+        return this.unflatten(filteredFlatTarget);
+    }
+
+    static updateTargetLangs(targetLangs: LangFiles, translatedKeys: FlatLangFiles, sourceLang: LangFile): LangFiles {
         const updatedLangs: LangFiles = {};
 
         for (const [lang, flatTranslatedKeys] of Object.entries(translatedKeys)) {
-            updatedLangs[lang] = this.updateTargetLang(targetLangs[lang] || {}, flatTranslatedKeys);
+            const targetLang = targetLangs[lang] || {};
+            const cleanedTargetLang = this.removeExtraKeys(sourceLang, targetLang);
+            updatedLangs[lang] = this.updateTargetLang(cleanedTargetLang, flatTranslatedKeys);
         }
 
         return updatedLangs;
     }
 
     private static updateTargetLang(targetLang: LangFile, translatedKeys: FlatLangFile): LangFile {
-        const unflattenedMissingKeys = this.unflatten(translatedKeys);
-        return merge({}, targetLang, unflattenedMissingKeys);
+        const unflattenedTranslatedKeys = this.unflatten(translatedKeys);
+        return merge({}, targetLang, unflattenedTranslatedKeys);
     }
 
     private static flatten(obj: LangFile, path: string = "", result: FlatLangFile = {}): FlatLangFile {
