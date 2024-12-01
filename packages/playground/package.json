@@ -10,7 +10,8 @@
     "private": true,
     "scripts": {
         "start": "worphling",
-        "start:exact": "worphling --try-exact-length"
+        "start:exact": "worphling --try-exact-length",
+        "start:next-intl": "worphling --next-intl"
     },
     "type": "module",
     "version": "0.0.0"
