@@ -29,6 +29,11 @@
                     "username": "Username"
                 },
                 "title": "Sign Up"
+            },
+            "trade": {
+                "description": "{totalPayment} USDT at {orderMode, select, limit {{price}} market {at current} other {}} market price",
+                "status": "{status, select, error {Rejected} success {Verified} loading {Verifying} other {}} open trade",
+                "title": "Order {status, select, error {failed} success {placed} loading {placing} other {}}"
             }
         },
         "errors": {
