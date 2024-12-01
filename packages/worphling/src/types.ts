@@ -14,6 +14,7 @@ export interface Config {
 
 export interface Flags {
     isTryingExactLengthEnabled: boolean;
+    isNextIntlEnabled: boolean;
 }
 
 export type AppConfig = Config & { flags: Flags };

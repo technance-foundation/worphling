@@ -1,5 +1,6 @@
 import { OpenAI } from "openai";
-import { FlatLangFiles, Flags, AppConfig } from "../types";
+import { FlatLangFiles, AppConfig, Flags } from "../types";
+import { EXAMPLE_INPUT, EXAMPLE_NEXT_INTL_INPUT, EXAMPLE_NEXT_INTL_OUTPUT, EXAMPLE_OUTPUT } from "./examples";
 
 export class Translator {
     private client: OpenAI;
@@ -19,44 +20,7 @@ export class Translator {
     }
 
     private async fetchTranslations(missingKeys: FlatLangFiles): Promise<string> {
-        const exampleInput = `
-            {
-              "es": {
-                "app.auth.login.buttons.forgotPassword": "Forgot Password?",
-                "landing.errors.404.message": "The page you're looking for doesn't exist.",
-                "landing.errors.404.title": "Page Not Found",
-                "landing.errors.500.message": "Something went wrong. Please try again later.",
-                "landing.errors.500.title": "Server Error"
-              },
-              "fa": {
-                "app.auth.login.errors.accountLocked": "Account locked. Contact support."
-              },
-              "ru": {
-                "app.errors.500.message": "Something went wrong. Please try again later.",
-                "app.errors.500.title": "Server Error"
-              }
-            }
-        `;
-        const exampleOutput = `
-            {
-              "es": {
-                "app.auth.login.buttons.forgotPassword": "¿Olvidaste tu contraseña?",
-                "landing.errors.404.message": "La página que estás buscando no existe.",
-                "landing.errors.404.title": "Página no encontrada",
-                "landing.errors.500.message": "Algo salió mal. Por favor, inténtalo de nuevo más tarde.",
-                "landing.errors.500.title": "Error del servidor"
-              },
-              "fa": {
-                "app.auth.login.errors.accountLocked": "حساب شما قفل شده است. با پشتیبانی تماس بگیرید."
-              },
-              "ru": {
-                "app.errors.500.message": "Что-то пошло не так. Пожалуйста, попробуйте позже.",
-                "app.errors.500.title": "Ошибка сервера"
-              }
-            }
-        `;
-
-        const { isTryingExactLengthEnabled } = this.flags;
+        const { isNextIntlEnabled, isTryingExactLengthEnabled } = this.flags;
 
         const response = await this.client.chat.completions.create({
             model: this.model,
@@ -69,8 +33,8 @@ export class Translator {
                     content: `
                     You are a translation assistant. Translate the following keys and texts into their specified languages.
                     Always respond with valid JSON format matching the input structure.
-                    Example input: ${exampleInput}
-                    Example output: ${exampleOutput}
+                    Example input: ${isNextIntlEnabled ? EXAMPLE_NEXT_INTL_INPUT : EXAMPLE_INPUT}
+                    Example output: ${isNextIntlEnabled ? EXAMPLE_NEXT_INTL_OUTPUT : EXAMPLE_OUTPUT}
                     Make sure to not include the response in \`\`\`json block. Your response must be a parse-able json format.
                     ${isTryingExactLengthEnabled && "Translated responses must not exceed the length of their input."}    
                 `,

@@ -10,12 +10,13 @@ export class Cli {
 
     private detectFlags(): Flags {
         const args = minimist(process.argv.slice(2), {
-            boolean: ["try-exact-length"],
-            default: { "try-exact-length": false },
+            boolean: ["try-exact-length", "next-intl"],
+            default: { "try-exact-length": false, "next-intl": false },
         });
 
         const isTryingExactLengthEnabled = args["try-exact-length"];
+        const isNextIntlEnabled = args["next-intl"];
 
-        return { isTryingExactLengthEnabled };
+        return { isTryingExactLengthEnabled, isNextIntlEnabled };
     }
 }
