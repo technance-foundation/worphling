@@ -1,9 +1,8 @@
 import minimist from "minimist";
 import { Flags } from "../types";
-import { ANSI_COLORS } from "../constants";
 
 export class Cli {
-    public flags: Flags = { isTryExactLength: false };
+    public flags: Flags;
 
     constructor() {
         this.flags = this.detectFlags();
@@ -15,13 +14,8 @@ export class Cli {
             default: { "try-exact-length": false },
         });
 
-        const isTryExactLength = args["try-exact-length"];
+        const isTryingExactLengthEnabled = args["try-exact-length"];
 
-        console.log(
-            ANSI_COLORS[isTryExactLength ? "green" : "yellow"],
-            `> Flag --try-exact-length is ${isTryExactLength ? "enabled" : "disabled"}.`
-        );
-
-        return { isTryExactLength };
+        return { isTryingExactLengthEnabled };
     }
 }
