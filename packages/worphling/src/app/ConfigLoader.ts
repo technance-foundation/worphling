@@ -1,6 +1,6 @@
 import path from "path";
 import fs from "fs";
-import { Config } from "../types";
+import { Config, Plugin } from "../types";
 import { ConfigValidationError, ConfigFileNotFoundError, ConfigLoadError } from "../errors";
 import { ANSI_COLORS } from "../constants";
 
@@ -55,10 +55,9 @@ export class ConfigLoader {
     }
 
     private logger(config: Config) {
-        const isNextIntlEnabled = config.plugin.nextIntl;
-        console.log(
-            ANSI_COLORS[isNextIntlEnabled ? "green" : "yellow"],
-            `> The \`nextIntl\` plugin is ${isNextIntlEnabled ? "enabled" : "disabled"}.`
-        );
+        const isNextIntlEnabled = config.plugin === Plugin.NextIntl;
+        if (isNextIntlEnabled) {
+            console.log(ANSI_COLORS.green, "> The `nextIntl` plugin is enabled.");
+        }
     }
 }

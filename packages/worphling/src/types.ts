@@ -10,7 +10,7 @@ export interface Config {
         file: string;
         directory: string;
     };
-    plugin: Plugin;
+    plugin: `${Plugin}`;
 }
 
 export interface Flags {
@@ -21,7 +21,10 @@ export type AppConfig = Config & {
     flags: Flags;
 };
 
-export type Plugin = Record<"nextIntl", boolean>;
+export enum Plugin {
+    NextIntl = "next-intl",
+    None = "none",
+}
 
 export type LangFile = Record<string, any>;
 

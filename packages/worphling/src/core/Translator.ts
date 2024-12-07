@@ -6,7 +6,7 @@ export class Translator {
     private client: OpenAI;
     private model: string;
     private flags: Flags;
-    private plugin: Plugin;
+    private plugin: `${Plugin}`;
 
     constructor({ service, flags, plugin }: AppConfig) {
         const { apiKey, model = "gpt-4o-2024-11-20" } = service;
@@ -23,7 +23,7 @@ export class Translator {
 
     private async fetchTranslations(missingKeys: FlatLangFiles): Promise<string> {
         const { isTryingExactLengthEnabled } = this.flags;
-        const isNextIntlPluginEnabled = this.plugin.nextIntl;
+        const isNextIntlPluginEnabled = this.plugin === Plugin.NextIntl;
 
         const response = await this.client.chat.completions.create({
             model: this.model,
