@@ -1,16 +1,16 @@
 import { OpenAI } from "openai";
-import { FlatLangFiles, Config, Options } from "../types";
+import { FlatLangFiles, Config, Flags } from "../types";
 
 export class Translator {
     private client: OpenAI;
     private model: string;
-    private options: Options;
+    private flags: Flags;
 
-    constructor({ service, options = { isTryExactLength: false } }: Pick<Config, "service" | "options">) {
+    constructor({ service, flags }: Pick<Config, "service" | "flags">) {
         const { apiKey, model = "gpt-4o-2024-11-20" } = service;
         this.client = new OpenAI({ apiKey });
         this.model = model;
-        this.options = options;
+        this.flags = flags;
     }
 
     async translate(missingKeys: FlatLangFiles): Promise<FlatLangFiles> {
@@ -56,7 +56,7 @@ export class Translator {
             }
         `;
 
-        const isTryExactLength = this.options.isTryExactLength;
+        const isTryExactLength = this.flags.isTryExactLength;
 
         const response = await this.client.chat.completions.create({
             model: this.model,

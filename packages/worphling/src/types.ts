@@ -5,16 +5,15 @@ export interface Config {
         name: "OpenAI";
         apiKey: string;
         model?: OpenAI.Chat.ChatModel;
-        options?: Options;
     };
     source: {
         file: string;
         directory: string;
     };
-    options?: Options;
+    flags: Flags;
 }
 
-export interface Options {
+export interface Flags {
     isTryExactLength: boolean;
 }
 
