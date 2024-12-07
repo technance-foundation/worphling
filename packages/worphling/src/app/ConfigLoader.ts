@@ -2,6 +2,7 @@ import path from "path";
 import fs from "fs";
 import { Config } from "../types";
 import { ConfigValidationError, ConfigFileNotFoundError, ConfigLoadError } from "../errors";
+import { ANSI_COLORS } from "../constants";
 
 export class ConfigLoader {
     private config: Config | null;
@@ -31,6 +32,7 @@ export class ConfigLoader {
             const config = loadedConfig.default || loadedConfig;
 
             this.validate(config);
+            this.logger(config);
             this.config = config;
             return this.config;
         } catch (error) {
@@ -50,5 +52,13 @@ export class ConfigLoader {
                 throw new ConfigValidationError(`Invalid configuration: Missing required key "${key}".`);
             }
         }
+    }
+
+    private logger(config: Config) {
+        const isNextIntlEnabled = config.plugin.nextIntl;
+        console.log(
+            ANSI_COLORS[isNextIntlEnabled ? "green" : "yellow"],
+            `> The \`nextIntl\` plugin is ${isNextIntlEnabled ? "enabled" : "disabled"}.`
+        );
     }
 }
