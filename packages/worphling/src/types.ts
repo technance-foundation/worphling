@@ -10,14 +10,18 @@ export interface Config {
         file: string;
         directory: string;
     };
+    plugin: Plugin;
 }
 
 export interface Flags {
     isTryingExactLengthEnabled: boolean;
-    isNextIntlEnabled: boolean;
 }
 
-export type AppConfig = Config & { flags: Flags };
+export type AppConfig = Config & {
+    flags: Flags;
+};
+
+export type Plugin = Record<"nextIntl", boolean>;
 
 export type LangFile = Record<string, any>;
 

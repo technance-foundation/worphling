@@ -1,17 +1,19 @@
 import { OpenAI } from "openai";
-import { FlatLangFiles, AppConfig, Flags } from "../types";
+import { FlatLangFiles, AppConfig, Flags, Plugin } from "../types";
 import { EXAMPLE_INPUT, EXAMPLE_NEXT_INTL_INPUT, EXAMPLE_NEXT_INTL_OUTPUT, EXAMPLE_OUTPUT } from "./examples";
 
 export class Translator {
     private client: OpenAI;
     private model: string;
     private flags: Flags;
+    private plugin: Plugin;
 
-    constructor({ service, flags }: AppConfig) {
+    constructor({ service, flags, plugin }: AppConfig) {
         const { apiKey, model = "gpt-4o-2024-11-20" } = service;
         this.client = new OpenAI({ apiKey });
         this.model = model;
         this.flags = flags;
+        this.plugin = plugin;
     }
 
     async translate(missingKeys: FlatLangFiles): Promise<FlatLangFiles> {
@@ -20,7 +22,8 @@ export class Translator {
     }
 
     private async fetchTranslations(missingKeys: FlatLangFiles): Promise<string> {
-        const { isNextIntlEnabled, isTryingExactLengthEnabled } = this.flags;
+        const { isTryingExactLengthEnabled } = this.flags;
+        const isNextIntlPluginEnabled = this.plugin.nextIntl;
 
         const response = await this.client.chat.completions.create({
             model: this.model,
@@ -33,8 +36,8 @@ export class Translator {
                     content: `
                     You are a translation assistant. Translate the following keys and texts into their specified languages.
                     Always respond with valid JSON format matching the input structure.
-                    Example input: ${isNextIntlEnabled ? EXAMPLE_NEXT_INTL_INPUT : EXAMPLE_INPUT}
-                    Example output: ${isNextIntlEnabled ? EXAMPLE_NEXT_INTL_OUTPUT : EXAMPLE_OUTPUT}
+                    Example input: ${isNextIntlPluginEnabled ? EXAMPLE_NEXT_INTL_INPUT : EXAMPLE_INPUT}
+                    Example output: ${isNextIntlPluginEnabled ? EXAMPLE_NEXT_INTL_OUTPUT : EXAMPLE_OUTPUT}
                     Make sure to not include the response in \`\`\`json block. Your response must be a parse-able json format.
                     ${isTryingExactLengthEnabled && "Translated responses must not exceed the length of their input."}    
                 `,
