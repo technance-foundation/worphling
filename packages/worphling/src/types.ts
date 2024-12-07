@@ -12,6 +12,12 @@ export interface Config {
     };
 }
 
+export interface Flags {
+    isTryingExactLengthEnabled: boolean;
+}
+
+export type AppConfig = Config & { flags: Flags };
+
 export type LangFile = Record<string, any>;
 
 export type LangFiles = Record<string, LangFile>;

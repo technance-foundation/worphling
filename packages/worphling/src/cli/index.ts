@@ -2,16 +2,17 @@
 
 import { App, ConfigLoader } from "../app";
 import { ERROR_STATUS_CODE } from "../constants";
-
+import { Cli } from "./Cli";
 export * from "../types";
 
 (async () => {
+    const cli = new Cli();
     const configLoader = new ConfigLoader();
 
     try {
         const config = await configLoader.load();
-        const cli = new App(config);
-        const statusCode = await cli.run();
+        const app = new App({ ...config, flags: cli.flags });
+        const statusCode = await app.run();
         process.exit(statusCode);
     } catch (error) {
         if (error instanceof Error) {

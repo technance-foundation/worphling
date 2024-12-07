@@ -9,7 +9,8 @@
     "name": "@invexa/worphling-playground",
     "private": true,
     "scripts": {
-        "start": "worphling"
+        "start": "worphling",
+        "start:exact": "worphling --try-exact-length"
     },
     "type": "module",
     "version": "0.0.0"

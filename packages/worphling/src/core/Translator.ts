@@ -1,13 +1,16 @@
 import { OpenAI } from "openai";
-import { FlatLangFiles, Config } from "../types";
+import { FlatLangFiles, Flags, AppConfig } from "../types";
 
 export class Translator {
     private client: OpenAI;
     private model: string;
+    private flags: Flags;
 
-    constructor({ apiKey, model = "gpt-4o-2024-11-20" }: Config["service"]) {
+    constructor({ service, flags }: AppConfig) {
+        const { apiKey, model = "gpt-4o-2024-11-20" } = service;
         this.client = new OpenAI({ apiKey });
         this.model = model;
+        this.flags = flags;
     }
 
     async translate(missingKeys: FlatLangFiles): Promise<FlatLangFiles> {
@@ -53,6 +56,8 @@ export class Translator {
             }
         `;
 
+        const { isTryingExactLengthEnabled } = this.flags;
+
         const response = await this.client.chat.completions.create({
             model: this.model,
             response_format: {
@@ -67,6 +72,7 @@ export class Translator {
                     Example input: ${exampleInput}
                     Example output: ${exampleOutput}
                     Make sure to not include the response in \`\`\`json block. Your response must be a parse-able json format.
+                    ${isTryingExactLengthEnabled && "Translated responses must not exceed the length of their input."}    
                 `,
                 },
                 {
