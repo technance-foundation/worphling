@@ -56,7 +56,7 @@ export class Translator {
             }
         `;
 
-        const isTryExactLength = this.flags.isTryExactLength;
+        const { isTryingExactLengthEnabled } = this.flags;
 
         const response = await this.client.chat.completions.create({
             model: this.model,
@@ -72,7 +72,7 @@ export class Translator {
                     Example input: ${exampleInput}
                     Example output: ${exampleOutput}
                     Make sure to not include the response in \`\`\`json block. Your response must be a parse-able json format.
-                    ${isTryExactLength && "Translated responses must not exceed the length of their input."}    
+                    ${isTryingExactLengthEnabled && "Translated responses must not exceed the length of their input."}    
                 `,
                 },
                 {

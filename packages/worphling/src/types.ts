@@ -13,7 +13,7 @@ export interface Config {
 }
 
 export interface Flags {
-    isTryExactLength: boolean;
+    isTryingExactLengthEnabled: boolean;
 }
 
 export type AppConfig = Config & { flags: Flags };
