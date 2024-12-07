@@ -1,12 +1,12 @@
 import { OpenAI } from "openai";
-import { FlatLangFiles, Config, Flags } from "../types";
+import { FlatLangFiles, Flags, AppConfig } from "../types";
 
 export class Translator {
     private client: OpenAI;
     private model: string;
     private flags: Flags;
 
-    constructor({ service, flags }: Pick<Config, "service" | "flags">) {
+    constructor({ service, flags }: AppConfig) {
         const { apiKey, model = "gpt-4o-2024-11-20" } = service;
         this.client = new OpenAI({ apiKey });
         this.model = model;

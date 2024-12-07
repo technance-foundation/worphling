@@ -10,12 +10,13 @@ export interface Config {
         file: string;
         directory: string;
     };
-    flags: Flags;
 }
 
 export interface Flags {
     isTryExactLength: boolean;
 }
+
+export type AppConfig = Config & { flags: Flags };
 
 export type LangFile = Record<string, any>;
 

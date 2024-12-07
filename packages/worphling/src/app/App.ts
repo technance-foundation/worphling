@@ -1,12 +1,12 @@
 import { JsonProcessor, LangProcessor, Translator } from "../core";
-import { Config } from "../types";
+import { AppConfig } from "../types";
 import { ANSI_COLORS, SUCCESS_STATUS_CODE } from "../constants";
 import { omit } from "lodash-es";
 
 export class App {
-    private config: Config;
+    private config: AppConfig;
 
-    constructor(config: Config) {
+    constructor(config: AppConfig) {
         this.config = config;
     }
 
