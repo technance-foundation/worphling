@@ -37,7 +37,8 @@
         "build": "tsup",
         "build:dev": "tsup --watch",
         "dev": "tsx watch src/index.ts",
-        "start": "node dist/index.js"
+        "start": "node dist/index.js",
+        "type-check": "tsc"
     },
     "type": "module",
     "types": "dist/index.d.ts",
