@@ -3,7 +3,7 @@ import fs from "fs";
 import { Config } from "../types";
 import { ConfigValidationError, ConfigFileNotFoundError, ConfigLoadError } from "../errors";
 
-const extensions = [".mjs", ".js", ".ts"];
+const extensions = [".mjs", ".js"];
 
 export class ConfigLoader {
     private config: Config | null;
