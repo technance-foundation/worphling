@@ -13,6 +13,7 @@ const config = {
         file: "./locales/en.json",
         directory: "./locales",
     },
+    plugin: "next-intl",
 };
 
 export default config;

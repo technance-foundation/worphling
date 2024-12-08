@@ -10,13 +10,21 @@ export interface Config {
         file: string;
         directory: string;
     };
+    plugin: `${Plugin}`;
 }
 
 export interface Flags {
     isTryingExactLengthEnabled: boolean;
 }
 
-export type AppConfig = Config & { flags: Flags };
+export type AppConfig = Config & {
+    flags: Flags;
+};
+
+export enum Plugin {
+    NextIntl = "next-intl",
+    None = "none",
+}
 
 export type LangFile = Record<string, any>;
 
