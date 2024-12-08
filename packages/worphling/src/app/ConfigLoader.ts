@@ -3,6 +3,8 @@ import fs from "fs";
 import { Config } from "../types";
 import { ConfigValidationError, ConfigFileNotFoundError, ConfigLoadError } from "../errors";
 
+const extensions = [".mjs", ".js", ".ts"];
+
 export class ConfigLoader {
     private config: Config | null;
 
@@ -13,14 +15,14 @@ export class ConfigLoader {
     public getConfig(): Config {
         if (!this.config) {
             throw new ConfigValidationError(
-                "Configuration has not been loaded. Please ensure a valid configuration file is present."
+                "Configuration has not been loaded. Please ensure a valid configuration file is present.",
             );
         }
         return this.config;
     }
 
     public async load(): Promise<Config> {
-        const configFilePath = path.resolve("worphling.config.js");
+        const configFilePath = this.resolveConfigFile("worphling.config");
 
         if (!fs.existsSync(configFilePath)) {
             throw new ConfigFileNotFoundError(configFilePath);
@@ -40,6 +42,16 @@ export class ConfigLoader {
             const reason = error instanceof Error ? error.message : "Unknown error";
             throw new ConfigLoadError(configFilePath, reason);
         }
+    }
+
+    private resolveConfigFile(baseName: string) {
+        for (const extension of extensions) {
+            const filePath = path.resolve(`${baseName}${extension}`);
+            if (fs.existsSync(filePath)) {
+                return filePath;
+            }
+        }
+        throw new Error(`Config file not found. Searched for: ${extensions.map((ext) => `${baseName}${ext}`).join(", ")}`);
     }
 
     private validate(config: Partial<Config>): void {
