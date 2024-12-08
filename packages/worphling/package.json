@@ -37,6 +37,7 @@
         "build": "tsup",
         "build:dev": "tsup --watch",
         "dev": "tsx watch src/index.ts",
+        "release": "pnpm build && npm publish",
         "start": "node dist/index.js",
         "type-check": "tsc"
     },
