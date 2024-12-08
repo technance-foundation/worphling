@@ -1,0 +1,15 @@
+name: "Smoke Test"
+
+on: push
+
+jobs:
+    smoke-test:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check
+              uses: invexa-foundation/github-action-check@main
+              with:
+                  node-version: "20"
+                  pnpm-version: "9.7.0"
+                  check-command: "pnpm run check"
+                  npm-token: ${{ secrets.NPM_TOKEN }}
