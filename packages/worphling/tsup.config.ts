@@ -11,4 +11,7 @@ export default defineConfig({
     sourcemap: true,
     platform: "node",
     target: "node16",
+    esbuildOptions(options) {
+        options.charset = "utf8";
+    },
 });
