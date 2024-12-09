@@ -4,7 +4,7 @@
 
 ### Patch Changes
 
-- Updated the configuration file resolution logic to support multiple file extensions (.mjs, .js, .ts) dynamically.
+- Updated the configuration file resolution logic to support multiple file extensions (.mjs, .js) dynamically.
 
 ## 1.0.0
 
