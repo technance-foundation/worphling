@@ -15,6 +15,7 @@ export interface Config {
 
 export interface Flags {
     isTryingExactLengthEnabled: boolean;
+    isSortingEnabled: boolean;
 }
 
 export type AppConfig = Config & {

@@ -4,7 +4,7 @@
 
 ### Minor Changes
 
--   Added automatic alphabetical sorting of keys (recursive) for all output JSON files, including the source language file, after translation.
+-   Added optional automatic alphabetical sorting of keys (recursive) for all output JSON files, including the source language file. Enable this behavior via the `--with-sorting` flag.
 
 ## 1.0.2
 

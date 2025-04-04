@@ -28,7 +28,7 @@ export class App {
 
         const allDataToWrite = { ...updatedTargets, [sourceKey]: sourceData };
 
-        JsonProcessor.writeAll(this.config.source.directory, allDataToWrite);
+        JsonProcessor.writeAll(this.config.source.directory, allDataToWrite, this.config.flags.isSortingEnabled);
         return SUCCESS_STATUS_CODE;
     }
 }
