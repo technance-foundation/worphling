@@ -14,7 +14,7 @@ export class JsonProcessor {
         return this.read(directory, jsonFiles);
     }
 
-    static writeAll(directoryPath: string, translations: Record<string, any>): void {
+    static writeAll(directoryPath: string, translations: Record<string, any>, isSortingEnabled: boolean): void {
         const directory = path.resolve(directoryPath);
 
         if (!fs.existsSync(directory)) {
@@ -25,7 +25,8 @@ export class JsonProcessor {
             const filePath = path.join(directory, `${langKey}.json`);
 
             try {
-                const jsonContent = JSON.stringify(content, null, 4);
+                const contentToWrite = isSortingEnabled ? sortObjectKeysRecursively(content) : content;
+                const jsonContent = JSON.stringify(contentToWrite, null, 4);
                 fs.writeFileSync(filePath, jsonContent, "utf-8");
                 console.log(ANSI_COLORS.green, `Success: File written for language "${langKey}" at ${filePath}`);
             } catch (error) {
@@ -60,4 +61,15 @@ export class JsonProcessor {
     static extractLanguageKey(filePath: string): string {
         return path.basename(filePath, ".json");
     }
+}
+function sortObjectKeysRecursively(obj: any) {
+    if (typeof obj !== "object" || obj === null || Array.isArray(obj)) {
+        return obj;
+    }
+    const sortedKeys = Object.keys(obj).sort();
+    const sortedObj: Record<string, any> = {};
+    for (const key of sortedKeys) {
+        sortedObj[key] = sortObjectKeysRecursively(obj[key]);
+    }
+    return sortedObj;
 }
