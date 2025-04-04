@@ -13,8 +13,9 @@ export class App {
     public async run(): Promise<number> {
         const data = JsonProcessor.readAll(this.config.source.directory);
         const sourceKey = JsonProcessor.extractLanguageKey(this.config.source.file);
-        const targets = omit(data, sourceKey);
-        const missingKeys = LangProcessor.findMissingKeys(data[sourceKey], targets);
+        const sourceData = data[sourceKey];
+        const initialTargets = omit(data, sourceKey);
+        const missingKeys = LangProcessor.findMissingKeys(sourceData, initialTargets);
 
         if (Object.entries(missingKeys).length === 0) {
             console.log(ANSI_COLORS.green, "All target languages are already translated.");
@@ -23,8 +24,11 @@ export class App {
 
         const translator = new Translator(this.config);
         const translated = await translator.translate(missingKeys);
-        const updatedTargets = LangProcessor.updateTargetLangs(targets, translated, data[sourceKey]);
-        JsonProcessor.writeAll(this.config.source.directory, updatedTargets);
+        const updatedTargets = LangProcessor.updateTargetLangs(initialTargets, translated, sourceData);
+
+        const allDataToWrite = { ...updatedTargets, [sourceKey]: sourceData };
+
+        JsonProcessor.writeAll(this.config.source.directory, allDataToWrite);
         return SUCCESS_STATUS_CODE;
     }
 }

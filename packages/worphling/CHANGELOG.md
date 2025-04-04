@@ -1,5 +1,11 @@
 # @invexa/worphling
 
+## 1.1.0
+
+### Minor Changes
+
+-   Added automatic alphabetical sorting of keys (recursive) for all output JSON files, including the source language file, after translation.
+
 ## 1.0.2
 
 ### Patch Changes
