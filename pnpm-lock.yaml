@@ -10,7 +10,7 @@ importers:
 
   packages/playground:
     dependencies:
-      '@invexa/worphling':
+      '@technance/worphling':
         specifier: workspace:*
         version: link:../worphling
       dotenv:

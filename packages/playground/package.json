@@ -1,12 +1,12 @@
 {
     "dependencies": {
-        "@invexa/worphling": "workspace:*",
+        "@technance/worphling": "workspace:*",
         "dotenv": "^16.4.5"
     },
     "devDependencies": {
         "@types/node": "^22.9.3"
     },
-    "name": "@invexa/worphling-playground",
+    "name": "@technance/worphling-playground",
     "private": true,
     "scripts": {
         "start": "worphling",
