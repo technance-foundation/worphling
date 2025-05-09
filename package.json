@@ -8,7 +8,7 @@
         "build:dev": "pnpm -r build:dev",
         "dev": "pnpm -r dev",
         "prepare": "pnpm run build",
-        "playground": "pnpm --filter @invexa/worphling-playground start",
+        "playground": "pnpm --filter @technance/worphling-playground start",
         "check": "cd packages/worphling pnpm build && pnpm type-check"
     }
 }

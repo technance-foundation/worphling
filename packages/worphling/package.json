@@ -1,5 +1,5 @@
 {
-    "author": "Invexa <dev@invexa.io>",
+    "author": "Technance <dev@technance.io>",
     "bin": {
         "worphling": "dist/index.js"
     },
@@ -32,7 +32,7 @@
     ],
     "license": "UNLICENSED",
     "main": "dist/index.js",
-    "name": "@invexa/worphling",
+    "name": "@technance/worphling",
     "scripts": {
         "build": "tsup",
         "build:dev": "tsup --watch",

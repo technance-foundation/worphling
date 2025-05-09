@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-/** @type {import('@invexa/worphling').Config} */
+/** @type {import('@technance/worphling').Config} */
 const config = {
     service: {
         apiKey: String(process.env.OPENAI_API_KEY),

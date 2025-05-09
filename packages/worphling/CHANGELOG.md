@@ -1,4 +1,4 @@
-# @invexa/worphling
+# @technance/worphling
 
 ## 1.1.0
 
