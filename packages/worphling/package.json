@@ -1,5 +1,5 @@
 {
-    "author": "technance <dev@technance.io>",
+    "author": "Technance <dev@technance.io>",
     "bin": {
         "worphling": "dist/index.js"
     },
