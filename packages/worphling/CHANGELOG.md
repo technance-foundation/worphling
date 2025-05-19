@@ -1,5 +1,15 @@
 # @technance/worphling
 
+## 1.1.1
+
+### Patch Changes
+
+-   Fixed issue with modified keys not being detected or translated in target language files
+-   Implemented snapshot-based tracking to properly identify when source text has been changed
+-   Added new CLI flags to control behavior:
+    -   `--skip-modified-detection`: Skip the detection of modified keys for specific use cases
+    -   `--force-retranslate-all`: Force retranslation of all keys when needed
+
 ## 1.1.0
 
 ### Minor Changes
