@@ -1,0 +1,329 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Worphling Documentation
+
+## Project Overview
+
+Worphling is a powerful translation synchronization tool that simplifies internationalization (i18n) workflows. It automatically identifies missing translations in target language files compared to a source language file and uses OpenAI's API to translate those missing keys.
+
+### Key Features
+
+- Automatic detection of missing translation keys
+- Seamless translation via OpenAI API
+- Support for nested translation structures
+- Preservation of complex translation patterns (pluralization, gender selection, rich text)
+- Plugin system (currently supporting next-intl)
+- CLI interface with customization options
+- Clean, maintainable JSON files with optional key sorting
+
+## Project Structure
+
+Worphling is organized as a monorepo using pnpm workspaces with two main packages:
+
+1. **@technance/worphling**: The core library providing translation functionality
+2. **@technance/worphling-playground**: A demo environment showcasing the library
+
+## Installation
+
+Worphling can be installed globally or as a project dependency:
+
+```bash
+# Global installation
+npm install -g @technance/worphling
+
+# Project dependency
+npm install --save-dev @technance/worphling
+```
+
+## Configuration
+
+Worphling requires a configuration file named `worphling.config.js` or `worphling.config.mjs` in your project root. 
+
+Example configuration:
+
+```javascript
+// worphling.config.js
+export default {
+    service: {
+        name: "OpenAI",
+        apiKey: "your-openai-api-key", // Or process.env.OPENAI_API_KEY
+        model: "gpt-4o-2024-11-20" // Optional, defaults to gpt-4o-2024-11-20
+    },
+    source: {
+        file: "./locales/en.json", // Source language file
+        directory: "./locales" // Directory containing all language files
+    },
+    plugin: "next-intl" // Or "none" for basic translations
+};
+```
+
+### Configuration Options
+
+- **service**: OpenAI API configuration
+  - **name**: Currently only "OpenAI" is supported
+  - **apiKey**: Your OpenAI API key
+  - **model**: Optional model name (defaults to "gpt-4o-2024-11-20")
+  
+- **source**: Path configuration
+  - **file**: Path to source language file
+  - **directory**: Path to directory containing all language files
+  
+- **plugin**: Plugin to use
+  - **"next-intl"**: Support for next-intl patterns
+  - **"none"**: Basic translation without special handling
+
+## Usage
+
+### Basic CLI Usage
+
+```bash
+# Run with default settings
+worphling
+
+# Run with exact length constraint
+worphling --try-exact-length
+
+# Run with key sorting
+worphling --with-sorting
+
+# Skip modified key detection
+worphling --skip-modified-detection
+
+# Force retranslation of all keys
+worphling --force-retranslate-all
+
+# Run with multiple options
+worphling --try-exact-length --with-sorting --force-retranslate-all
+```
+
+### CLI Options
+
+- **--try-exact-length**: Instructs the OpenAI model to generate translations that don't exceed the length of the original text. Useful for UI constraints.
+- **--with-sorting**: Sorts the keys in the output JSON files alphabetically for consistent ordering.
+- **--skip-modified-detection**: Skips the detection of modified keys in the source file. Only missing keys will be translated.
+- **--force-retranslate-all**: Forces retranslation of all keys in all target languages, regardless of whether they're missing or modified.
+
+## Core Components
+
+### JsonProcessor
+
+Handles reading and writing JSON files:
+- Reading all JSON files from a directory
+- Writing updated translations back to files
+- Extracting language keys from filenames
+- Sorting object keys recursively (when enabled)
+
+### LangProcessor
+
+Manages language processing:
+- Finding missing translation keys between source and target languages
+- Flattening nested structures to simplify comparison
+- Unflattening structures back to their original form
+- Updating target languages with newly translated content
+- Removing extra keys that don't exist in source language
+
+### Translator
+
+Handles the translation process:
+- Communicating with OpenAI API
+- Properly formatting requests for different plugins
+- Parsing and validating responses
+- Error handling for translation failures
+
+## Supported Translation Patterns
+
+Worphling supports various translation patterns, especially when using the next-intl plugin:
+
+### Basic Translations
+
+```json
+{
+  "app.title": "My Application"
+}
+```
+
+### Interpolation
+
+```json
+{
+  "app.welcome": "Welcome to {appName}"
+}
+```
+
+### Rich Text
+
+```json
+{
+  "app.greeting": "Hello <bold>{name}</bold>"
+}
+```
+
+### Pluralization
+
+```json
+{
+  "app.followers": "You have {count, plural, =0 {no followers yet} =1 {one follower} other {# followers}}."
+}
+```
+
+### Gender Selection
+
+```json
+{
+  "app.user.gender": "{gender, select, female {She} male {He} other {They}} is online."
+}
+```
+
+### Ordinals
+
+```json
+{
+  "app.user.birthday": "It's your {year, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} birthday!"
+}
+```
+
+## Error Handling
+
+Worphling includes custom error classes:
+
+- **ConfigValidationError**: Invalid configuration
+- **ConfigFileNotFoundError**: Missing configuration file
+- **ConfigLoadError**: Error loading configuration
+
+Error messages are displayed with ANSI colors in the terminal for better visibility.
+
+## Examples
+
+### Basic Translation Flow
+
+1. Create a configuration file (worphling.config.js)
+2. Set up language files in a directory
+3. Run `worphling` command
+4. Worphling will:
+   - Read all JSON files
+   - Find missing translations
+   - Translate them using OpenAI
+   - Update the target language files
+
+### Example Directory Structure
+
+```
+my-project/
+├── worphling.config.js
+├── locales/
+│   ├── en.json  (source)
+│   ├── es.json  (target)
+│   ├── fa.json  (target)
+│   └── ru.json  (target)
+```
+
+### Example Workflow
+
+Let's say `en.json` has a new key that doesn't exist in other language files:
+
+```json
+// en.json
+{
+  "app": {
+    "newFeature": {
+      "title": "New Feature",
+      "description": "Check out our latest feature!"
+    }
+  }
+}
+```
+
+After running `worphling`, the new keys will be translated and added to all target language files while preserving their existing structure.
+
+## Programmatic Usage
+
+```javascript
+import { App, ConfigLoader } from "@technance/worphling";
+
+async function translateMissingKeys() {
+  const configLoader = new ConfigLoader();
+  const config = await configLoader.load();
+  
+  const app = new App({ 
+    ...config, 
+    flags: { 
+      isTryingExactLengthEnabled: true,
+      isSortingEnabled: true 
+    } 
+  });
+  
+  const statusCode = await app.run();
+  return statusCode;
+}
+
+translateMissingKeys()
+  .then(code => console.log(`Completed with status code: ${code}`))
+  .catch(err => console.error(err));
+```
+
+## Advanced Usage
+
+### Using Environment Variables
+
+For security, it's recommended to use environment variables for the API key:
+
+```javascript
+// worphling.config.js
+import dotenv from "dotenv";
+dotenv.config();
+
+export default {
+  service: {
+    name: "OpenAI",
+    apiKey: process.env.OPENAI_API_KEY,
+  },
+  // ... other config
+};
+```
+
+### Integrating with CI/CD
+
+Worphling can be added to your CI/CD pipeline to automatically translate new keys:
+
+```yaml
+# Example GitHub Actions workflow
+jobs:
+  translate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: npm install -g @technance/worphling
+      - run: worphling --with-sorting
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+- **Missing API Key**: Ensure your OpenAI API key is correctly set in the configuration or as an environment variable.
+- **File Structure Issues**: Make sure all language files have the same basic structure.
+- **Invalid JSON**: Ensure your language files contain valid JSON.
+- **OpenAI API Limits**: Be aware of API rate limits, especially with large translation batches.
+
+### Debugging Tips
+
+- Run with more verbose logging if available
+- Check source and target files have correct paths
+- Verify the configuration file is in the correct location
+- Ensure language files have the correct file extensions (.json)
+
+## Best Practices
+
+1. **Version Control**: Always commit your source language files with complete keys before running Worphling.
+2. **Code Review**: Review auto-translated content for accuracy.
+3. **Regular Updates**: Run Worphling regularly to keep translations in sync.
+4. **Structure**: Maintain a consistent and logical nesting structure for easier maintenance.
+5. **API Key Security**: Use environment variables for API keys, never hardcode them.
