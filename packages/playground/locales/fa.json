@@ -7,7 +7,8 @@
                     "submit": "ورود"
                 },
                 "errors": {
-                    "invalidCredentials": "اطلاعات وارد شده صحیح نیست."
+                    "invalidCredentials": "اطلاعات وارد شده صحیح نیست.",
+                    "accountLocked": "حساب کاربری قفل شده است. با پشتیبانی تماس بگیرید."
                 },
                 "placeholders": {
                     "password": "رمز عبور",
@@ -28,6 +29,11 @@
                     "username": "نام کاربری"
                 },
                 "title": "ثبت‌نام"
+            },
+            "trade": {
+                "description": "{totalPayment} USDT به {orderMode, select, limit {{price}} market {به قیمت فعلی} other {}} قیمت بازار",
+                "status": "{status, select, error {رد شد} success {تأیید شد} loading {در حال تأیید} other {}} معامله باز",
+                "title": "سفارش {status, select, error {ناموفق} success {ثبت شد} loading {در حال ثبت} other {}}"
             }
         },
         "errors": {
