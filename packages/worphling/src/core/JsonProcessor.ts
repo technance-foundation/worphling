@@ -35,6 +35,41 @@ export class JsonProcessor {
         }
     }
 
+    static saveSnapshot(directoryPath: string, content: any): void {
+        const directory = path.resolve(directoryPath);
+        const snapshotPath = path.join(directory, ".worphling-snapshot.json");
+
+        try {
+            const jsonContent = JSON.stringify(content, null, 4);
+            fs.writeFileSync(snapshotPath, jsonContent, "utf-8");
+        } catch (error) {
+            console.warn(
+                ANSI_COLORS.yellow,
+                `Warning: Failed to save snapshot: ${error instanceof Error ? error.message : error}`
+            );
+        }
+    }
+
+    static loadSnapshot(directoryPath: string): any | null {
+        const directory = path.resolve(directoryPath);
+        const snapshotPath = path.join(directory, ".worphling-snapshot.json");
+
+        if (!fs.existsSync(snapshotPath)) {
+            return null;
+        }
+
+        try {
+            const content = fs.readFileSync(snapshotPath, "utf-8");
+            return JSON.parse(content);
+        } catch (error) {
+            console.warn(
+                ANSI_COLORS.yellow,
+                `Warning: Failed to load snapshot: ${error instanceof Error ? error.message : error}`
+            );
+            return null;
+        }
+    }
+
     private static scan(directory: string): string[] {
         return fs.readdirSync(directory).filter((file) => file.endsWith(".json"));
     }
