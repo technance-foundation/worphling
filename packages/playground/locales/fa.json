@@ -7,8 +7,8 @@
                     "submit": "ورود"
                 },
                 "errors": {
-                    "invalidCredentials": "اطلاعات وارد شده صحیح نیست.",
-                    "accountLocked": "حساب کاربری قفل شده است. با پشتیبانی تماس بگیرید."
+                    "accountLocked": "حساب کاربری قفل شده است. با پشتیبانی تماس بگیرید.",
+                    "invalidCredentials": "اطلاعات وارد شده صحیح نیست."
                 },
                 "placeholders": {
                     "password": "رمز عبور",
@@ -49,6 +49,9 @@
         "general": {
             "title": "برنامه من",
             "welcome": "به {appName} خوش آمدید"
+        },
+        "test": {
+            "title": "آزمون مورد علاقه من"
         }
     },
     "landing": {

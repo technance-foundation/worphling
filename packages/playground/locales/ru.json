@@ -49,6 +49,9 @@
         "general": {
             "title": "Мое приложение",
             "welcome": "Добро пожаловать в {appName}"
+        },
+        "test": {
+            "title": "Мой любимый тест"
         }
     },
     "landing": {

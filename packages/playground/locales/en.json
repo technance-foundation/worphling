@@ -49,6 +49,9 @@
         "general": {
             "title": "My Application",
             "welcome": "Welcome to {appName}"
+        },
+        "test": {
+            "title": "My favorite test"
         }
     },
     "landing": {

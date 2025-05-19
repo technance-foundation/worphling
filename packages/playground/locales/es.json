@@ -3,8 +3,8 @@
         "auth": {
             "login": {
                 "buttons": {
-                    "submit": "Iniciar sesión",
-                    "forgotPassword": "¿Olvidaste tu contraseña?"
+                    "forgotPassword": "¿Olvidaste tu contraseña?",
+                    "submit": "Iniciar sesión"
                 },
                 "errors": {
                     "accountLocked": "Cuenta bloqueada. Contacta con soporte.",
@@ -49,13 +49,12 @@
         "general": {
             "title": "Mi aplicación",
             "welcome": "Bienvenido a {appName}"
+        },
+        "test": {
+            "title": "Mi prueba favorita"
         }
     },
     "landing": {
-        "general": {
-            "title": "Mi aplicación",
-            "welcome": "Bienvenido a {appName}"
-        },
         "errors": {
             "404": {
                 "message": "La página que buscas no existe.",
@@ -65,6 +64,10 @@
                 "message": "Algo salió mal. Por favor, inténtalo de nuevo más tarde.",
                 "title": "Error del servidor"
             }
+        },
+        "general": {
+            "title": "Mi aplicación",
+            "welcome": "Bienvenido a {appName}"
         }
     }
 }
