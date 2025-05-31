@@ -6,9 +6,7 @@
 
 -   Fixed issue with modified keys not being detected or translated in target language files
 -   Implemented snapshot-based tracking to properly identify when source text has been changed
--   Added new CLI flags to control behavior:
-    -   `--skip-modified-detection`: Skip the detection of modified keys for specific use cases
-    -   `--force-retranslate-all`: Force retranslation of all keys when needed
+-   Modified key detection is now enabled by default for better user experience
 
 ## 1.1.0
 

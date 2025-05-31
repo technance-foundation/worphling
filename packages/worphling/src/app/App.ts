@@ -16,27 +16,18 @@ export class App {
         const sourceData = data[sourceKey];
         const initialTargets = omit(data, sourceKey);
 
-        const snapshot = this.config.flags.isForceRetranslateAllEnabled
-            ? null
-            : JsonProcessor.loadSnapshot(this.config.source.directory);
+        const snapshot = JsonProcessor.loadSnapshot(this.config.source.directory);
 
         const missingKeys = LangProcessor.findMissingKeys(sourceData, initialTargets);
 
         const modifiedKeysMap: FlatLangFiles = {};
-        if (snapshot && !this.config.flags.isModifiedDetectionSkipped && !this.config.flags.isForceRetranslateAllEnabled) {
+        if (snapshot) {
             const modifiedSourceKeys = LangProcessor.findModifiedKeys(sourceData, snapshot);
 
             for (const lang of Object.keys(initialTargets)) {
                 if (Object.keys(modifiedSourceKeys).length > 0) {
                     modifiedKeysMap[lang] = { ...modifiedSourceKeys };
                 }
-            }
-        }
-
-        if (this.config.flags.isForceRetranslateAllEnabled) {
-            const allSourceKeys = LangProcessor.getAllSourceKeys(sourceData);
-            for (const lang of Object.keys(initialTargets)) {
-                modifiedKeysMap[lang] = { ...allSourceKeys };
             }
         }
 

@@ -62,12 +62,6 @@ worphling --try-exact-length
 # Run with key sorting
 worphling --with-sorting
 
-# Skip modified key detection
-worphling --skip-modified-detection
-
-# Force retranslation of all keys
-worphling --force-retranslate-all
-
 # Combine multiple options
 worphling --try-exact-length --with-sorting
 ```

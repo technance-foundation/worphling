@@ -16,8 +16,6 @@ export interface Config {
 export interface Flags {
     isTryingExactLengthEnabled: boolean;
     isSortingEnabled: boolean;
-    isModifiedDetectionSkipped: boolean;
-    isForceRetranslateAllEnabled: boolean;
 }
 
 export type AppConfig = Config & {
