@@ -47,7 +47,7 @@
             }
         },
         "general": {
-            "title": "My Application",
+            "title": "My Awesome Application",
             "welcome": "Welcome to {appName}"
         },
         "test": {
@@ -66,7 +66,7 @@
             }
         },
         "general": {
-            "title": "My Application",
+            "title": "My Awesome Application",
             "welcome": "Welcome to {appName}"
         }
     }
