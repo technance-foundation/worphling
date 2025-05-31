@@ -17,10 +17,8 @@ Worphling is a powerful translation synchronization tool that simplifies i18n wo
 ## Installation
 
 ```bash
-npm install  @technance/worphling
-
-# Using pnpm
-pnpm add  @technance/worphling
+# Install using your favorite package manager as dev dependency
+pnpm add @technance/worphling -D
 ```
 
 ## Configuration
@@ -130,33 +128,6 @@ Worphling handles complex translation patterns:
 -   **Rich Text**: `"Hello <bold>{name}</bold>"`
 -   **Pluralization**: `"You have {count, plural, =0 {no followers} =1 {one follower} other {# followers}}."`
 -   **Selection**: `"{gender, select, female {She} male {He} other {They}} is online."`
-
-## Test the functionality with prompts
-
-You can leverage AI agents (like Claude or ChatGPT) to automatically test Worphling's functionality. Simply provide the following prompt to your preferred AI assistant:
-
-```
-I want to test our project functionality. Follow @testing-playground.mdc rule to check each script functionality.
-```
-
-The AI will:
-
-1. Examine your project structure
-2. Read the testing requirements from `.cursor/rules/testing-playground.mdc`
-3. Systematically test each core functionality:
-
-    - Basic translation of missing keys
-    - Modified key detection
-    - Sorting functionality
-    - Force retranslation
-    - Skip modified detection
-    - Try exact length translations
-
-4. Document test results in a `playground-test-result.md.md` file with:
-    - Test setup details
-    - Commands executed
-    - Output received
-    - Verification status
 
 ## Contributing
 
