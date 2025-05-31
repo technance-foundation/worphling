@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { ANSI_COLORS } from "../constants";
 
 export class JsonProcessor {
@@ -36,10 +37,14 @@ export class JsonProcessor {
     }
 
     static saveSnapshot(directoryPath: string, content: any): void {
-        const directory = path.resolve(directoryPath);
-        const snapshotPath = path.join(directory, ".worphling-snapshot.json");
+        const snapshotPath = this.getSnapshotPath(directoryPath);
 
         try {
+            const snapshotDir = path.dirname(snapshotPath);
+            if (!fs.existsSync(snapshotDir)) {
+                fs.mkdirSync(snapshotDir, { recursive: true });
+            }
+
             const jsonContent = JSON.stringify(content, null, 4);
             fs.writeFileSync(snapshotPath, jsonContent, "utf-8");
         } catch (error) {
@@ -51,8 +56,7 @@ export class JsonProcessor {
     }
 
     static loadSnapshot(directoryPath: string): any | null {
-        const directory = path.resolve(directoryPath);
-        const snapshotPath = path.join(directory, ".worphling-snapshot.json");
+        const snapshotPath = this.getSnapshotPath(directoryPath);
 
         if (!fs.existsSync(snapshotPath)) {
             return null;
@@ -68,6 +72,37 @@ export class JsonProcessor {
             );
             return null;
         }
+    }
+
+    private static getSnapshotPath(directoryPath: string): string {
+        const directory = path.resolve(directoryPath);
+
+        const hash = crypto.createHash("md5").update(directory).digest("hex").substring(0, 8);
+
+        let nodeModulesPath = this.findNodeModules(directory);
+
+        if (!nodeModulesPath) {
+            nodeModulesPath = path.join(directory, "../node_modules");
+        }
+
+        const snapshotDir = path.join(nodeModulesPath, ".worphling");
+        const snapshotFileName = `snapshot-${hash}.json`;
+
+        return path.join(snapshotDir, snapshotFileName);
+    }
+
+    private static findNodeModules(startPath: string): string | null {
+        let currentPath = startPath;
+
+        while (currentPath !== path.dirname(currentPath)) {
+            const nodeModulesPath = path.join(currentPath, "node_modules");
+            if (fs.existsSync(nodeModulesPath)) {
+                return nodeModulesPath;
+            }
+            currentPath = path.dirname(currentPath);
+        }
+
+        return null;
     }
 
     private static scan(directory: string): string[] {

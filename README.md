@@ -76,7 +76,7 @@ worphling --try-exact-length --with-sorting
 6. It updates all target language files with the new translations
 7. It maintains a snapshot of the source file for future change detection
 
-> **Note:** The snapshot is stored in a `.worphling-snapshot` file. You can add this file to your `.gitignore` to avoid committing it to your repository.
+> **Note:** Snapshots are automatically stored in your project's `node_modules/.worphling/` directory, so they're automatically gitignored.
 
 ### Example
 
