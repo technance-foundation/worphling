@@ -2,3 +2,6 @@ node_modules
 dist
 **/.worphling-snapshot*
 **/playground-test-result.md*
+
+.cursorrules
+.cursor
