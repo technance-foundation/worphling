@@ -47,8 +47,11 @@
             }
         },
         "general": {
-            "title": "My Application",
+            "title": "My Awesome Application",
             "welcome": "Welcome to {appName}"
+        },
+        "test": {
+            "title": "My favorite test"
         }
     },
     "landing": {
@@ -63,7 +66,7 @@
             }
         },
         "general": {
-            "title": "My Application",
+            "title": "My Awesome Application",
             "welcome": "Welcome to {appName}"
         }
     }

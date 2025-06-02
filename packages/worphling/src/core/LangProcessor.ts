@@ -25,6 +25,29 @@ export class LangProcessor {
         return result;
     }
 
+    static findModifiedKeys(currentSource: LangFile, snapshot: LangFile | null): FlatLangFile {
+        if (!snapshot) {
+            return {};
+        }
+
+        const result: FlatLangFile = {};
+
+        const flatCurrentSource = this.flatten(currentSource);
+        const flatSnapshot = this.flatten(snapshot);
+
+        for (const [key, value] of Object.entries(flatCurrentSource)) {
+            if (key in flatSnapshot && flatSnapshot[key] !== value) {
+                result[key] = value;
+            }
+        }
+
+        return result;
+    }
+
+    static getAllSourceKeys(source: LangFile): FlatLangFile {
+        return this.flatten(source);
+    }
+
     static removeExtraKeys(source: LangFile, target: LangFile): LangFile {
         const flatSource = this.flatten(source);
         const flatTarget = this.flatten(target);

@@ -3,6 +3,7 @@
         "auth": {
             "login": {
                 "buttons": {
+                    "forgotPassword": "¿Olvidaste tu contraseña?",
                     "submit": "Iniciar sesión"
                 },
                 "errors": {
@@ -28,6 +29,11 @@
                     "username": "Nombre de usuario"
                 },
                 "title": "Registrarse"
+            },
+            "trade": {
+                "description": "{totalPayment} USDT a {orderMode, select, limit {{price}} market {al precio actual} other {}} precio de mercado",
+                "status": "{status, select, error {Rechazado} success {Verificado} loading {Verificando} other {}} operación abierta",
+                "title": "Orden {status, select, error {fallida} success {realizada} loading {realizando} other {}}"
             }
         },
         "errors": {
@@ -41,13 +47,26 @@
             }
         },
         "general": {
-            "title": "Mi aplicación",
+            "title": "Mi Aplicación Asombrosa",
             "welcome": "Bienvenido a {appName}"
+        },
+        "test": {
+            "title": "Mi prueba favorita"
         }
     },
     "landing": {
+        "errors": {
+            "404": {
+                "message": "La página que buscas no existe.",
+                "title": "Página no encontrada"
+            },
+            "500": {
+                "message": "Algo salió mal. Por favor, inténtalo de nuevo más tarde.",
+                "title": "Error del servidor"
+            }
+        },
         "general": {
-            "title": "Mi aplicación",
+            "title": "Mi Aplicación Asombrosa",
             "welcome": "Bienvenido a {appName}"
         }
     }

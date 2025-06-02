@@ -29,17 +29,29 @@
                     "username": "Имя пользователя"
                 },
                 "title": "Регистрация"
+            },
+            "trade": {
+                "description": "{totalPayment} USDT по {orderMode, select, limit {{price}} market {текущей} other {}} рыночной цене",
+                "status": "{status, select, error {Отклонено} success {Проверено} loading {Проверяется} other {}} открытая сделка",
+                "title": "Заказ {status, select, error {не выполнен} success {размещен} loading {размещается} other {}}"
             }
         },
         "errors": {
             "404": {
                 "message": "Страница, которую вы ищете, не найдена.",
                 "title": "Страница не найдена"
+            },
+            "500": {
+                "message": "Что-то пошло не так. Пожалуйста, попробуйте позже.",
+                "title": "Ошибка сервера"
             }
         },
         "general": {
-            "title": "Мое приложение",
+            "title": "Моё Потрясающее Приложение",
             "welcome": "Добро пожаловать в {appName}"
+        },
+        "test": {
+            "title": "Мой любимый тест"
         }
     },
     "landing": {
@@ -54,7 +66,7 @@
             }
         },
         "general": {
-            "title": "Мое приложение",
+            "title": "Моё Потрясающее Приложение",
             "welcome": "Добро пожаловать в {appName}"
         }
     }
