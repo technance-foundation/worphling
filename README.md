@@ -2,8 +2,6 @@
 
 Worphling is a powerful translation synchronization tool that simplifies i18n workflows. It integrates with OpenAI to automatically detect, translate, and synchronize content from a source language file into multiple target languages.
 
-![Worphling](/assets/logo.png)
-
 ## Features
 
 -   🔍 **Automatic Detection** - Find missing translations across all target languages
@@ -48,9 +46,6 @@ export default {
 ```bash
 # Run with default settings
 worphling
-
-# Generate a config file (interactive)
-worphling init
 ```
 
 ### Advanced Options
@@ -82,7 +77,7 @@ worphling --try-exact-length --with-sorting
 
 Source file (en.json):
 
-```json
+```jsonc
 {
     "app": {
         "title": "My Application",
@@ -93,7 +88,7 @@ Source file (en.json):
 
 Spanish file before (es.json):
 
-```json
+```jsonc
 {
     "app": {
         "title": "Mi Aplicación"
@@ -104,7 +99,7 @@ Spanish file before (es.json):
 
 After running Worphling:
 
-```json
+```jsonc
 {
     "app": {
         "title": "Mi Aplicación",
@@ -112,16 +107,6 @@ After running Worphling:
     }
 }
 ```
-
-## Supported Translation Patterns
-
-Worphling handles complex translation patterns:
-
--   **Basic text**: `"Hello World"`
--   **Interpolation**: `"Welcome to {appName}"`
--   **Rich Text**: `"Hello <bold>{name}</bold>"`
--   **Pluralization**: `"You have {count, plural, =0 {no followers} =1 {one follower} other {# followers}}."`
--   **Selection**: `"{gender, select, female {She} male {He} other {They}} is online."`
 
 ## Contributing
 
