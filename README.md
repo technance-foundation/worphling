@@ -118,4 +118,4 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Credits
 
-Developed with ❤️ by [Technance](https://technance.io).
+Developed with ❤️ by [Technance](https://technance.com).
