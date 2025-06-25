@@ -6,16 +6,16 @@
     "dependencies": {
         "lodash-es": "^4.17.21",
         "minimist": "^1.2.8",
-        "openai": "^4.73.1"
+        "openai": "^5.7.0"
     },
     "description": "Simplify your translation workflow using Worphling. Synchronize translations and automate.",
     "devDependencies": {
         "@types/lodash-es": "^4.17.12",
         "@types/minimist": "^1.2.5",
-        "@types/node": "^22.9.3",
-        "tsup": "^8.3.5",
-        "tsx": "^4.19.2",
-        "typescript": "^5.7.2"
+        "@types/node": "^24.0.4",
+        "tsup": "^8.5.0",
+        "tsx": "^4.20.3",
+        "typescript": "^5.8.3"
     },
     "exports": {
         ".": "./dist/index.js"
@@ -43,5 +43,5 @@
     },
     "type": "module",
     "types": "dist/index.d.ts",
-    "version": "1.1.1"
+    "version": "1.2.0"
 }

@@ -1,5 +1,11 @@
 # @technance/worphling
 
+## 1.2.0
+
+### Minor Changes
+
+-   Upgrade all installed dependency packages to their latest versions.
+
 ## 1.1.1
 
 ### Patch Changes
