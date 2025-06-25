@@ -8,7 +8,7 @@
                 },
                 "errors": {
                     "accountLocked": "Cuenta bloqueada. Contacta con soporte.",
-                    "invalidCredentials": "Credenciales inválidas."
+                    "invalidCredentials": "Credenciales inválidas"
                 },
                 "placeholders": {
                     "password": "Contraseña",
