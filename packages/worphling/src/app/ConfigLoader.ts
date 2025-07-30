@@ -1,4 +1,5 @@
 import path from "path";
+import { pathToFileURL } from "url";
 import fs from "fs";
 import { Config } from "../types";
 import { ConfigValidationError, ConfigFileNotFoundError, ConfigLoadError } from "../errors";
@@ -29,7 +30,8 @@ export class ConfigLoader {
         }
 
         try {
-            const loadedConfig: { default: Config } = await import(configFilePath);
+            const configFileUrl = pathToFileURL(configFilePath).href;
+            const loadedConfig: { default: Config } = await import(configFileUrl);
             const config = loadedConfig.default || loadedConfig;
 
             this.validate(config);
@@ -44,7 +46,7 @@ export class ConfigLoader {
         }
     }
 
-    private resolveConfigFile(baseName: string) {
+    private resolveConfigFile(baseName: string): string {
         for (const extension of extensions) {
             const filePath = path.resolve(`${baseName}${extension}`);
             if (fs.existsSync(filePath)) {
