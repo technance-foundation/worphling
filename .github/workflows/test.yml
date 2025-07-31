@@ -1,13 +1,9 @@
 name: Test
 
-on:
-    push:
-        branches:
-            - main
-    pull_request:
+on: push
 
 jobs:
-    test:
+    check:
         runs-on: ${{ matrix.os }}
         strategy:
             matrix:
@@ -17,22 +13,10 @@ jobs:
         name: Test on ${{ matrix.os }} with Node ${{ matrix.node }}
 
         steps:
-            - name: Checkout repo
-              uses: actions/checkout@v4
-
-            - name: Setup Node.js ${{ matrix.node }}
-              uses: actions/setup-node@v4
+            - name: Check
+              uses: technance-foundation/github-action-check@main
               with:
-                  node-version: ${{ matrix.node }}
-                  cache: "pnpm"
-
-            - name: Setup pnpm
-              uses: pnpm/action-setup@v3
-              with:
-                  version: 8
-
-            - name: Install dependencies
-              run: pnpm install
-
-            - name: Run tests
-              run: pnpm vitest run
+                  node-version: "20"
+                  pnpm-version: "10.6.5"
+                  check-command: "pnpm run test"
+                  npm-token: ${{ secrets.NPM_TOKEN }}
