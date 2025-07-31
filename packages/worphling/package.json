@@ -36,6 +36,7 @@
     "scripts": {
         "build": "tsup",
         "build:dev": "tsup --watch",
+        "test": "vitest",
         "dev": "tsx watch src/index.ts",
         "release": "pnpm build && npm publish",
         "start": "node dist/index.js",

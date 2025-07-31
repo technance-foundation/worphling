@@ -7,9 +7,13 @@
     "scripts": {
         "build": "pnpm -r build",
         "build:dev": "pnpm -r build:dev",
+        "test": "pnpm -r test",
         "dev": "pnpm -r dev",
         "prepare": "pnpm run build",
         "playground": "pnpm --filter @technance/worphling-playground start",
         "check": "cd packages/worphling pnpm build && pnpm type-check"
+    },
+    "devDependencies": {
+        "vitest": "^3.2.4"
     }
 }
