@@ -1,5 +1,11 @@
 # @technance/worphling
 
+## 1.3.0
+
+### Minor Changes
+
+-   Fix package not working in Windows setup
+
 ## 1.2.0
 
 ### Minor Changes
