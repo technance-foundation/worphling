@@ -28,7 +28,7 @@ export class JsonProcessor {
             try {
                 const contentToWrite = isSortingEnabled ? sortObjectKeysRecursively(content) : content;
                 const jsonContent = JSON.stringify(contentToWrite, null, 4);
-                fs.writeFileSync(filePath, jsonContent, "utf-8");
+                fs.writeFileSync(filePath, jsonContent + "\n", "utf-8");
                 console.log(ANSI_COLORS.green, `Success: File written for language "${langKey}" at ${filePath}`);
             } catch (error) {
                 throw new Error(`Error writing file: ${filePath}, ${error instanceof Error ? error.message : error}`);
@@ -46,7 +46,7 @@ export class JsonProcessor {
             }
 
             const jsonContent = JSON.stringify(content, null, 4);
-            fs.writeFileSync(snapshotPath, jsonContent, "utf-8");
+            fs.writeFileSync(snapshotPath, jsonContent + "\n", "utf-8");
         } catch (error) {
             console.warn(
                 ANSI_COLORS.yellow,
@@ -132,6 +132,7 @@ export class JsonProcessor {
         return path.basename(filePath, ".json");
     }
 }
+
 function sortObjectKeysRecursively(obj: any) {
     if (typeof obj !== "object" || obj === null || Array.isArray(obj)) {
         return obj;
