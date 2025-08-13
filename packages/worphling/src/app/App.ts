@@ -1,5 +1,5 @@
 import { JsonProcessor, LangProcessor, Translator } from "../core";
-import { AppConfig, FlatLangFiles } from "../types";
+import { AppConfig, FlatLangFiles, LangFiles } from "../types";
 import { ANSI_COLORS, SUCCESS_STATUS_CODE } from "../constants";
 import { omit } from "lodash-es";
 
@@ -15,17 +15,19 @@ export class App {
         const isSortingEnabled = this.config.flags.isSortingEnabled;
         const sourceKey = JsonProcessor.extractLanguageKey(this.config.source.file);
         const sourceData = data[sourceKey];
-        const initialTargets = omit(data, sourceKey);
+        const initialTargets: LangFiles = omit(data, sourceKey);
+
+        const cleanedTargets = LangProcessor.removeAllExtraKeys(sourceData, initialTargets);
 
         const snapshot = JsonProcessor.loadSnapshot(this.config.source.directory);
 
-        const missingKeys = LangProcessor.findMissingKeys(sourceData, initialTargets);
+        const missingKeys = LangProcessor.findMissingKeys(sourceData, cleanedTargets);
 
         const modifiedKeysMap: FlatLangFiles = {};
         if (snapshot) {
             const modifiedSourceKeys = LangProcessor.findModifiedKeys(sourceData, snapshot);
 
-            for (const lang of Object.keys(initialTargets)) {
+            for (const lang of Object.keys(cleanedTargets)) {
                 if (Object.keys(modifiedSourceKeys).length > 0) {
                     modifiedKeysMap[lang] = { ...modifiedSourceKeys };
                 }
@@ -41,8 +43,8 @@ export class App {
         }
 
         // Log information about what we found
-        let missingCount = Object.values(missingKeys).reduce((sum, langKeys) => sum + Object.keys(langKeys).length, 0);
-        let modifiedCount = Object.values(modifiedKeysMap).reduce((sum, langKeys) => sum + Object.keys(langKeys).length, 0);
+        const missingCount = Object.values(missingKeys).reduce((sum, langKeys) => sum + Object.keys(langKeys).length, 0);
+        const modifiedCount = Object.values(modifiedKeysMap).reduce((sum, langKeys) => sum + Object.keys(langKeys).length, 0);
 
         if (missingCount > 0) {
             console.log(ANSI_COLORS.yellow, `Found ${missingCount} missing translations across all languages.`);
@@ -58,7 +60,7 @@ export class App {
             if (isSortingEnabled) {
                 console.log(ANSI_COLORS.yellow, "Sorting all files as requested...");
             }
-            const allDataToWrite = { ...initialTargets, [sourceKey]: sourceData };
+            const allDataToWrite = { ...cleanedTargets, [sourceKey]: sourceData };
             JsonProcessor.writeAll(this.config.source.directory, allDataToWrite, isSortingEnabled);
 
             if (!snapshot) {
@@ -70,7 +72,7 @@ export class App {
 
         const translator = new Translator(this.config);
         const translated = await translator.translate(keysToTranslate);
-        const updatedTargets = LangProcessor.updateTargetLangs(initialTargets, translated, sourceData);
+        const updatedTargets = LangProcessor.updateTargetLangs(cleanedTargets, translated);
 
         if (isSortingEnabled) {
             console.log(ANSI_COLORS.yellow, "Sorting all files as requested...");

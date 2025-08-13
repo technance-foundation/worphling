@@ -2,10 +2,6 @@
     "app": {
         "auth": {
             "login": {
-                "buttons": {
-                    "forgotPassword": "¿Olvidaste tu contraseña?",
-                    "submit": "Iniciar sesión"
-                },
                 "errors": {
                     "accountLocked": "Cuenta bloqueada. Contacta con soporte.",
                     "invalidCredentials": "Credenciales inválidas"

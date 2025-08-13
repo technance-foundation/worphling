@@ -1,5 +1,6 @@
 import { isPlainObject, merge, omit } from "lodash-es";
 import { FlatLangFile, FlatLangFiles, LangFile, LangFiles } from "../types";
+import { ANSI_COLORS } from "../constants";
 
 export class LangProcessor {
     static findMissingKeys(source: LangFile, targets: LangFiles): FlatLangFiles {
@@ -48,24 +49,39 @@ export class LangProcessor {
         return this.flatten(source);
     }
 
-    static removeExtraKeys(source: LangFile, target: LangFile): LangFile {
-        const flatSource = this.flatten(source);
-        const flatTarget = this.flatten(target);
+    static removeAllExtraKeys(source: LangFile, targets: LangFiles): LangFiles {
+        const cleanedTargetsLangs: LangFiles = {};
+        let totalKeysRemoved = 0;
 
-        const keysToRemove = Object.keys(flatTarget).filter((key) => !(key in flatSource));
+        for (const [lang, target] of Object.entries(targets)) {
+            const flatSource = this.flatten(source);
+            const flatTarget = this.flatten(target);
 
-        const filteredFlatTarget = omit(flatTarget, keysToRemove);
+            const keysToRemove = Object.keys(flatTarget).filter((key) => !(key in flatSource));
 
-        return this.unflatten(filteredFlatTarget);
+            totalKeysRemoved += keysToRemove.length;
+
+            const filteredFlatTarget = omit(flatTarget, keysToRemove);
+
+            cleanedTargetsLangs[lang] = this.unflatten(filteredFlatTarget);
+        }
+
+        if (totalKeysRemoved > 0) {
+            console.log(
+                ANSI_COLORS.yellow,
+                `Removed ${totalKeysRemoved} extra translation key${totalKeysRemoved > 1 ? "s" : ""} across all languages.`
+            );
+        }
+
+        return cleanedTargetsLangs;
     }
 
-    static updateTargetLangs(targetLangs: LangFiles, translatedKeys: FlatLangFiles, sourceLang: LangFile): LangFiles {
+    static updateTargetLangs(targetLangs: LangFiles, translatedKeys: FlatLangFiles): LangFiles {
         const updatedLangs: LangFiles = {};
 
         for (const [lang, flatTranslatedKeys] of Object.entries(translatedKeys)) {
             const targetLang = targetLangs[lang] || {};
-            const cleanedTargetLang = this.removeExtraKeys(sourceLang, targetLang);
-            updatedLangs[lang] = this.updateTargetLang(cleanedTargetLang, flatTranslatedKeys);
+            updatedLangs[lang] = this.updateTargetLang(targetLang, flatTranslatedKeys);
         }
 
         return updatedLangs;
