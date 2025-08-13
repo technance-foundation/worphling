@@ -12,6 +12,7 @@ export class App {
 
     public async run(): Promise<number> {
         const data = JsonProcessor.readAll(this.config.source.directory);
+        const isSortingEnabled = this.config.flags.isSortingEnabled;
         const sourceKey = JsonProcessor.extractLanguageKey(this.config.source.file);
         const sourceData = data[sourceKey];
         const initialTargets = omit(data, sourceKey);
@@ -54,11 +55,11 @@ export class App {
         if (Object.entries(keysToTranslate).length === 0) {
             console.log(ANSI_COLORS.green, "All target languages are already translated and up to date.");
 
-            if (this.config.flags.isSortingEnabled) {
+            if (isSortingEnabled) {
                 console.log(ANSI_COLORS.yellow, "Sorting all files as requested...");
-                const allDataToWrite = { ...initialTargets, [sourceKey]: sourceData };
-                JsonProcessor.writeAll(this.config.source.directory, allDataToWrite, true);
             }
+            const allDataToWrite = { ...initialTargets, [sourceKey]: sourceData };
+            JsonProcessor.writeAll(this.config.source.directory, allDataToWrite, isSortingEnabled);
 
             if (!snapshot) {
                 JsonProcessor.saveSnapshot(this.config.source.directory, sourceData);
@@ -71,9 +72,12 @@ export class App {
         const translated = await translator.translate(keysToTranslate);
         const updatedTargets = LangProcessor.updateTargetLangs(initialTargets, translated, sourceData);
 
-        const allDataToWrite = { ...updatedTargets, [sourceKey]: sourceData };
+        if (isSortingEnabled) {
+            console.log(ANSI_COLORS.yellow, "Sorting all files as requested...");
+        }
 
-        JsonProcessor.writeAll(this.config.source.directory, allDataToWrite, this.config.flags.isSortingEnabled);
+        const allDataToWrite = { ...updatedTargets, [sourceKey]: sourceData };
+        JsonProcessor.writeAll(this.config.source.directory, allDataToWrite, isSortingEnabled);
 
         JsonProcessor.saveSnapshot(this.config.source.directory, sourceData);
 
