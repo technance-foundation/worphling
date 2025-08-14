@@ -1,8 +1,8 @@
 # @technance/worphling
 
-## 1.4.0
+## 1.3.1
 
-### Minor Changes
+### Patch Changes
 
 -   Fix package not removing extra keys in targets file
 
