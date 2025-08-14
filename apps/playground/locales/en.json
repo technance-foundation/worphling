@@ -2,10 +2,6 @@
     "app": {
         "auth": {
             "login": {
-                "buttons": {
-                    "forgotPassword": "Forgot Password?",
-                    "submit": "Log In"
-                },
                 "errors": {
                     "accountLocked": "Account locked. Contact support.",
                     "invalidCredentials": "Invalid credentials"

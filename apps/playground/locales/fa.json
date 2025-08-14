@@ -2,13 +2,9 @@
     "app": {
         "auth": {
             "login": {
-                "buttons": {
-                    "forgotPassword": "رمز عبور خود را فراموش کرده‌اید؟",
-                    "submit": "ورود"
-                },
                 "errors": {
                     "accountLocked": "حساب کاربری قفل شده است. با پشتیبانی تماس بگیرید.",
-                    "invalidCredentials": "اطلاعات وارد شده صحیح نیست."
+                    "invalidCredentials": "اطلاعات ورود نامعتبر است"
                 },
                 "placeholders": {
                     "password": "رمز عبور",

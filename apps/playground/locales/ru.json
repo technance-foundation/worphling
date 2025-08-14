@@ -2,13 +2,9 @@
     "app": {
         "auth": {
             "login": {
-                "buttons": {
-                    "forgotPassword": "Забыли пароль?",
-                    "submit": "Войти"
-                },
                 "errors": {
                     "accountLocked": "Аккаунт заблокирован. Свяжитесь с поддержкой.",
-                    "invalidCredentials": "Неверные учетные данные."
+                    "invalidCredentials": "Неверные учетные данные"
                 },
                 "placeholders": {
                     "password": "Пароль",
