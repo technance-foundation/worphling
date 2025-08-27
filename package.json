@@ -11,9 +11,15 @@
         "dev": "pnpm -r dev",
         "prepare": "pnpm run build",
         "playground": "pnpm --filter @technance/worphling-playground start",
-        "check": "cd packages/worphling pnpm build && pnpm type-check"
+        "check": "cd packages/worphling pnpm build && pnpm type-check",
+        "changeset": "changeset",
+        "bump": "changeset version",
+        "release": "changeset publish"
     },
+    "packageManager": "pnpm@10.6.5",
     "devDependencies": {
+        "@changesets/changelog-github": "^0.5.1",
+        "@changesets/cli": "^2.29.6",
         "vitest": "^3.2.4"
     }
 }
