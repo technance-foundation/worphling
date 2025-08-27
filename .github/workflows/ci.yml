@@ -24,6 +24,6 @@ jobs:
               uses: technance-foundation/github-action-check@main
               with:
                   node-version: 22
-                  pnpm-version: 9.7.0
+                  pnpm-version: 10.6.5
                   check-command: "pnpm run check"
                   npm-token: ${{ secrets.NPM_TOKEN }}
