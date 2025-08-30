@@ -13,7 +13,6 @@ on:
             - ".github/workflows/preview-release.yml"
 
 env:
-    NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     TURBO_TOKEN: ${{ secrets.VERCEL_TECHNANCE_TOKEN }}
     TURBO_TEAM: ${{ vars.TURBO_TEAM }}
     FORCE_COLOR: 3

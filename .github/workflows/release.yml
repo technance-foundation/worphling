@@ -6,7 +6,6 @@ on:
 
 env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
     TURBO_TOKEN: ${{ secrets.VERCEL_TECHNANCE_TOKEN }}
     TURBO_TEAM: ${{ vars.TURBO_TEAM }}
