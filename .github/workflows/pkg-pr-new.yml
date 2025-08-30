@@ -13,7 +13,6 @@ on:
             - ".github/workflows/preview-release.yml"
 
 env:
-    NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     TURBO_TOKEN: ${{ secrets.VERCEL_TECHNANCE_TOKEN }}
     TURBO_TEAM: ${{ vars.TURBO_TEAM }}
     FORCE_COLOR: 3
@@ -22,29 +21,9 @@ jobs:
     build:
         runs-on: ubuntu-latest
         steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
-
-            - name: Setup pnpm
-              uses: pnpm/action-setup@v4
+            - uses: technance-foundation/github-actions/.github/actions/publish-any-commit@main
               with:
-                  run_install: false
-
-            - name: Setup Node
-              uses: actions/setup-node@v4
-              with:
+                  package-paths: "./packages/worphling"
                   node-version-file: ".nvmrc"
                   cache: "pnpm"
-
-            - name: Authenticate NPM registry
-              shell: bash
-              run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/.npmrc
-
-            - name: Install dependencies
-              run: pnpm install --frozen-lockfile
-
-            - name: Build
-              run: pnpm build
-
-            - name: Publish packages
-              run: pnpm dlx pkg-pr-new publish --pnpm './packages/worphling'
+                  pnpm-version: "10.6.5"

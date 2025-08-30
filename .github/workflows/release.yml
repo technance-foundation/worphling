@@ -6,8 +6,7 @@ on:
 
 env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-    NPM_PUBLISH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
+    NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
     TURBO_TOKEN: ${{ secrets.VERCEL_TECHNANCE_TOKEN }}
     TURBO_TEAM: ${{ vars.TURBO_TEAM }}
     FORCE_COLOR: 3
@@ -16,81 +15,14 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
     publish:
-        name: Publish New Release
         runs-on: ubuntu-latest
-        timeout-minutes: 15
         permissions:
             contents: write
             pull-requests: write
             id-token: write
         steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+            - uses: technance-foundation/github-actions/.github/actions/release@main
               with:
-                  fetch-depth: 0
-                  ref: ${{ github.ref }}
-
-            - name: Setup git for changesets
-              run: |
-                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
-                  git config --global user.name "github-actions[bot]"
-                  git fetch origin main:main
-
-            - name: Setup pnpm
-              uses: pnpm/action-setup@v4
-              with:
-                  run_install: false
-
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version-file: ".nvmrc"
-                  registry-url: "https://registry.npmjs.org"
-                  cache: "pnpm"
-
-            - name: Authenticate NPM registry
-              shell: bash
-              run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/.npmrc
-
-            - name: Install dependencies
-              run: pnpm install --frozen-lockfile
-
-            - name: Build packages
-              run: pnpm build
-
-            - name: Capture New Release Version
-              if: hashFiles('.changeset/*.md') != ''
-              run: |
-                  if pnpm changeset status --output=release.json 2>/dev/null; then
-                      echo "NEW_VERSION=$(jq -r '.releases[0].newVersion' release.json)" >> "$GITHUB_ENV"
-                      rm release.json
-                  else
-                      echo "No new changes to process, skipping version capture"
-                      echo "NEW_VERSION=" >> "$GITHUB_ENV"
-                  fi
-
-            - name: Create Release Pull Request or Publish to NPM
-              id: changesets
-              uses: changesets/action@v1
-              with:
-                  title: "Release v${{env.NEW_VERSION}}"
-                  commit: "Release v${{env.NEW_VERSION}}"
-                  version: pnpm run bump
-                  publish: pnpm run release
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  NPM_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
-
-            - name: Open PR → main
-              if: steps.changesets.outputs.published == 'true'
-              run: |
-                  gh pr create \
-                    --head "${{ github.ref_name }}" \
-                    --base main \
-                    --title "Merge ${{ github.ref_name }} back to main" \
-                    --body "Auto-generated after publishing."
-              env:
-                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  GH_DEBUG: 1
-                  GH_TRACE: 1
+                  cache: pnpm
+                  pnpm-version: "10.6.5"
+                  pr-base: main
