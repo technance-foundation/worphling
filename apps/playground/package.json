@@ -1,10 +1,10 @@
 {
     "dependencies": {
         "@technance/worphling": "workspace:*",
-        "dotenv": "^17.2.3"
+        "dotenv": "catalog:"
     },
     "devDependencies": {
-        "@types/node": "^24.10.2"
+        "@types/node": "catalog:"
     },
     "name": "@technance/worphling-playground",
     "private": true,
