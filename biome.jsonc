@@ -1,0 +1,18 @@
+{
+    "extends": ["@technance/code-style/biome"],
+    "root": true,
+    "linter": {
+        "enabled": true,
+        "rules": {
+            "complexity": {
+                "noStaticOnlyClass": "off"
+            },
+            "suspicious": {
+                "noExplicitAny": "off"
+            }
+        }
+    },
+    "formatter": {
+        "enabled": true
+    }
+}
