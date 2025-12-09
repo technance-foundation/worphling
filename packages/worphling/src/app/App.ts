@@ -1,7 +1,8 @@
-import { JsonProcessor, LangProcessor, Translator } from "../core";
-import { AppConfig, FlatLangFiles, LangFiles } from "../types";
-import { ANSI_COLORS, SUCCESS_STATUS_CODE } from "../constants";
 import { omit } from "lodash-es";
+
+import { ANSI_COLORS, SUCCESS_STATUS_CODE } from "../constants";
+import { JsonProcessor, LangProcessor, Translator } from "../core";
+import type { AppConfig, FlatLangFiles, LangFiles } from "../types";
 
 export class App {
     private config: AppConfig;

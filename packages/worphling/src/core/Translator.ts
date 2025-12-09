@@ -1,5 +1,7 @@
 import { OpenAI } from "openai";
-import { FlatLangFiles, AppConfig, Flags, Plugin } from "../types";
+
+import { type AppConfig, type Flags, type FlatLangFiles, Plugin } from "../types";
+
 import { EXAMPLE_INPUT, EXAMPLE_NEXT_INTL_INPUT, EXAMPLE_NEXT_INTL_OUTPUT, EXAMPLE_OUTPUT } from "./examples";
 
 export class Translator {

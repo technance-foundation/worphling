@@ -1,15 +1,16 @@
 import { isPlainObject, merge, omit } from "lodash-es";
-import { FlatLangFile, FlatLangFiles, LangFile, LangFiles } from "../types";
+
 import { ANSI_COLORS } from "../constants";
+import type { FlatLangFile, FlatLangFiles, LangFile, LangFiles } from "../types";
 
 export class LangProcessor {
     static findMissingKeys(source: LangFile, targets: LangFiles): FlatLangFiles {
         const result: FlatLangFiles = {};
 
-        const flatSource = this.flatten(source);
+        const flatSource = LangProcessor.flatten(source);
 
         for (const [lang, target] of Object.entries(targets)) {
-            const flatTarget = this.flatten(target);
+            const flatTarget = LangProcessor.flatten(target);
             const missingEntries: FlatLangFile = {};
 
             for (const [key, value] of Object.entries(flatSource)) {
@@ -33,8 +34,8 @@ export class LangProcessor {
 
         const result: FlatLangFile = {};
 
-        const flatCurrentSource = this.flatten(currentSource);
-        const flatSnapshot = this.flatten(snapshot);
+        const flatCurrentSource = LangProcessor.flatten(currentSource);
+        const flatSnapshot = LangProcessor.flatten(snapshot);
 
         for (const [key, value] of Object.entries(flatCurrentSource)) {
             if (key in flatSnapshot && flatSnapshot[key] !== value) {
@@ -46,7 +47,7 @@ export class LangProcessor {
     }
 
     static getAllSourceKeys(source: LangFile): FlatLangFile {
-        return this.flatten(source);
+        return LangProcessor.flatten(source);
     }
 
     static removeAllExtraKeys(source: LangFile, targets: LangFiles): LangFiles {
@@ -54,8 +55,8 @@ export class LangProcessor {
         let totalKeysRemoved = 0;
 
         for (const [lang, target] of Object.entries(targets)) {
-            const flatSource = this.flatten(source);
-            const flatTarget = this.flatten(target);
+            const flatSource = LangProcessor.flatten(source);
+            const flatTarget = LangProcessor.flatten(target);
 
             const keysToRemove = Object.keys(flatTarget).filter((key) => !(key in flatSource));
 
@@ -63,13 +64,13 @@ export class LangProcessor {
 
             const filteredFlatTarget = omit(flatTarget, keysToRemove);
 
-            cleanedTargetsLangs[lang] = this.unflatten(filteredFlatTarget);
+            cleanedTargetsLangs[lang] = LangProcessor.unflatten(filteredFlatTarget);
         }
 
         if (totalKeysRemoved > 0) {
             console.log(
                 ANSI_COLORS.yellow,
-                `Removed ${totalKeysRemoved} extra translation key${totalKeysRemoved > 1 ? "s" : ""} across all languages.`
+                `Removed ${totalKeysRemoved} extra translation key${totalKeysRemoved > 1 ? "s" : ""} across all languages.`,
             );
         }
 
@@ -81,14 +82,14 @@ export class LangProcessor {
 
         for (const [lang, flatTranslatedKeys] of Object.entries(translatedKeys)) {
             const targetLang = targetLangs[lang] || {};
-            updatedLangs[lang] = this.updateTargetLang(targetLang, flatTranslatedKeys);
+            updatedLangs[lang] = LangProcessor.updateTargetLang(targetLang, flatTranslatedKeys);
         }
 
         return updatedLangs;
     }
 
     private static updateTargetLang(targetLang: LangFile, translatedKeys: FlatLangFile): LangFile {
-        const unflattenedTranslatedKeys = this.unflatten(translatedKeys);
+        const unflattenedTranslatedKeys = LangProcessor.unflatten(translatedKeys);
         return merge({}, targetLang, unflattenedTranslatedKeys);
     }
 
@@ -97,7 +98,7 @@ export class LangProcessor {
             const newPath = path ? `${path}.${key}` : key;
 
             if (isPlainObject(value)) {
-                this.flatten(value as LangFile, newPath, result);
+                LangProcessor.flatten(value as LangFile, newPath, result);
             } else {
                 result[newPath] = value;
             }

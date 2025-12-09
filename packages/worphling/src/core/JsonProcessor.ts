@@ -1,6 +1,7 @@
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
-import crypto from "crypto";
+
 import { ANSI_COLORS } from "../constants";
 
 export class JsonProcessor {
@@ -11,8 +12,8 @@ export class JsonProcessor {
             throw new Error(`Directory not found: ${directory}`);
         }
 
-        const jsonFiles = this.scan(directory);
-        return this.read(directory, jsonFiles);
+        const jsonFiles = JsonProcessor.scan(directory);
+        return JsonProcessor.read(directory, jsonFiles);
     }
 
     static writeAll(directoryPath: string, translations: Record<string, any>, isSortingEnabled: boolean): void {
@@ -37,7 +38,7 @@ export class JsonProcessor {
     }
 
     static saveSnapshot(directoryPath: string, content: any): void {
-        const snapshotPath = this.getSnapshotPath(directoryPath);
+        const snapshotPath = JsonProcessor.getSnapshotPath(directoryPath);
 
         try {
             const snapshotDir = path.dirname(snapshotPath);
@@ -56,7 +57,7 @@ export class JsonProcessor {
     }
 
     static loadSnapshot(directoryPath: string): any | null {
-        const snapshotPath = this.getSnapshotPath(directoryPath);
+        const snapshotPath = JsonProcessor.getSnapshotPath(directoryPath);
 
         if (!fs.existsSync(snapshotPath)) {
             return null;
@@ -79,7 +80,7 @@ export class JsonProcessor {
 
         const hash = crypto.createHash("md5").update(directory).digest("hex").substring(0, 8);
 
-        let nodeModulesPath = this.findNodeModules(directory);
+        let nodeModulesPath = JsonProcessor.findNodeModules(directory);
 
         if (!nodeModulesPath) {
             nodeModulesPath = path.join(directory, "../node_modules");
