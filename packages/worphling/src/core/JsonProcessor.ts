@@ -1,6 +1,6 @@
-import crypto from "crypto";
-import fs from "fs";
-import path from "path";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 import { ANSI_COLORS } from "../constants";
 
@@ -29,7 +29,7 @@ export class JsonProcessor {
             try {
                 const contentToWrite = isSortingEnabled ? sortObjectKeysRecursively(content) : content;
                 const jsonContent = JSON.stringify(contentToWrite, null, 4);
-                fs.writeFileSync(filePath, jsonContent + "\n", "utf-8");
+                fs.writeFileSync(filePath, `${jsonContent}\n`, "utf-8");
                 console.log(ANSI_COLORS.green, `Success: File written for language "${langKey}" at ${filePath}`);
             } catch (error) {
                 throw new Error(`Error writing file: ${filePath}, ${error instanceof Error ? error.message : error}`);
@@ -47,11 +47,11 @@ export class JsonProcessor {
             }
 
             const jsonContent = JSON.stringify(content, null, 4);
-            fs.writeFileSync(snapshotPath, jsonContent + "\n", "utf-8");
+            fs.writeFileSync(snapshotPath, `${jsonContent}\n`, "utf-8");
         } catch (error) {
             console.warn(
                 ANSI_COLORS.yellow,
-                `Warning: Failed to save snapshot: ${error instanceof Error ? error.message : error}`
+                `Warning: Failed to save snapshot: ${error instanceof Error ? error.message : error}`,
             );
         }
     }
@@ -69,7 +69,7 @@ export class JsonProcessor {
         } catch (error) {
             console.warn(
                 ANSI_COLORS.yellow,
-                `Warning: Failed to load snapshot: ${error instanceof Error ? error.message : error}`
+                `Warning: Failed to load snapshot: ${error instanceof Error ? error.message : error}`,
             );
             return null;
         }
