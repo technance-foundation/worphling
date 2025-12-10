@@ -1,5 +1,11 @@
 # @technance/worphling
 
+## 2.0.0
+
+### Major Changes
+
+-   [#27](https://github.com/technance-foundation/worphling/pull/27) [`68614b6`](https://github.com/technance-foundation/worphling/commit/68614b69cb39cc09b74abe4ac09f566725efa891) Thanks [@mowhcen](https://github.com/mowhcen)! - Update dependencies and switch to latest GPT model for `Translator`
+
 ## 1.3.1
 
 ### Patch Changes
