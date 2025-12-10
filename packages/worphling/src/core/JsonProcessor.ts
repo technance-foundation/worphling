@@ -1,6 +1,7 @@
-import fs from "fs";
-import path from "path";
-import crypto from "crypto";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+
 import { ANSI_COLORS } from "../constants";
 
 export class JsonProcessor {
@@ -11,8 +12,8 @@ export class JsonProcessor {
             throw new Error(`Directory not found: ${directory}`);
         }
 
-        const jsonFiles = this.scan(directory);
-        return this.read(directory, jsonFiles);
+        const jsonFiles = JsonProcessor.scan(directory);
+        return JsonProcessor.read(directory, jsonFiles);
     }
 
     static writeAll(directoryPath: string, translations: Record<string, any>, isSortingEnabled: boolean): void {
@@ -28,7 +29,7 @@ export class JsonProcessor {
             try {
                 const contentToWrite = isSortingEnabled ? sortObjectKeysRecursively(content) : content;
                 const jsonContent = JSON.stringify(contentToWrite, null, 4);
-                fs.writeFileSync(filePath, jsonContent + "\n", "utf-8");
+                fs.writeFileSync(filePath, `${jsonContent}\n`, "utf-8");
                 console.log(ANSI_COLORS.green, `Success: File written for language "${langKey}" at ${filePath}`);
             } catch (error) {
                 throw new Error(`Error writing file: ${filePath}, ${error instanceof Error ? error.message : error}`);
@@ -37,7 +38,7 @@ export class JsonProcessor {
     }
 
     static saveSnapshot(directoryPath: string, content: any): void {
-        const snapshotPath = this.getSnapshotPath(directoryPath);
+        const snapshotPath = JsonProcessor.getSnapshotPath(directoryPath);
 
         try {
             const snapshotDir = path.dirname(snapshotPath);
@@ -46,17 +47,17 @@ export class JsonProcessor {
             }
 
             const jsonContent = JSON.stringify(content, null, 4);
-            fs.writeFileSync(snapshotPath, jsonContent + "\n", "utf-8");
+            fs.writeFileSync(snapshotPath, `${jsonContent}\n`, "utf-8");
         } catch (error) {
             console.warn(
                 ANSI_COLORS.yellow,
-                `Warning: Failed to save snapshot: ${error instanceof Error ? error.message : error}`
+                `Warning: Failed to save snapshot: ${error instanceof Error ? error.message : error}`,
             );
         }
     }
 
     static loadSnapshot(directoryPath: string): any | null {
-        const snapshotPath = this.getSnapshotPath(directoryPath);
+        const snapshotPath = JsonProcessor.getSnapshotPath(directoryPath);
 
         if (!fs.existsSync(snapshotPath)) {
             return null;
@@ -68,7 +69,7 @@ export class JsonProcessor {
         } catch (error) {
             console.warn(
                 ANSI_COLORS.yellow,
-                `Warning: Failed to load snapshot: ${error instanceof Error ? error.message : error}`
+                `Warning: Failed to load snapshot: ${error instanceof Error ? error.message : error}`,
             );
             return null;
         }
@@ -79,7 +80,7 @@ export class JsonProcessor {
 
         const hash = crypto.createHash("md5").update(directory).digest("hex").substring(0, 8);
 
-        let nodeModulesPath = this.findNodeModules(directory);
+        let nodeModulesPath = JsonProcessor.findNodeModules(directory);
 
         if (!nodeModulesPath) {
             nodeModulesPath = path.join(directory, "../node_modules");

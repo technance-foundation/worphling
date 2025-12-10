@@ -1,5 +1,6 @@
 import minimist from "minimist";
-import { Flags } from "../types";
+
+import type { Flags } from "../types";
 
 export class Cli {
     public flags: Flags;

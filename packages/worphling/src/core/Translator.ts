@@ -1,5 +1,7 @@
 import { OpenAI } from "openai";
-import { FlatLangFiles, AppConfig, Flags, Plugin } from "../types";
+
+import { type AppConfig, type Flags, type FlatLangFiles, Plugin } from "../types";
+
 import { EXAMPLE_INPUT, EXAMPLE_NEXT_INTL_INPUT, EXAMPLE_NEXT_INTL_OUTPUT, EXAMPLE_OUTPUT } from "./examples";
 
 export class Translator {
@@ -9,7 +11,7 @@ export class Translator {
     private plugin: `${Plugin}`;
 
     constructor({ service, flags, plugin }: AppConfig) {
-        const { apiKey, model = "gpt-4o-2024-11-20" } = service;
+        const { apiKey, model = "gpt-5.1-2025-11-13" } = service;
         this.client = new OpenAI({ apiKey });
         this.model = model;
         this.flags = flags;

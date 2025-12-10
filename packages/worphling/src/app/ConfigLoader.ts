@@ -1,8 +1,9 @@
-import path from "path";
-import { pathToFileURL } from "url";
-import fs from "fs";
-import { Config } from "../types";
-import { ConfigValidationError, ConfigFileNotFoundError, ConfigLoadError } from "../errors";
+import fs from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+import { ConfigFileNotFoundError, ConfigLoadError, ConfigValidationError } from "../errors";
+import type { Config } from "../types";
 
 const extensions = [".mjs", ".js"];
 

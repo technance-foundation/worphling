@@ -13,13 +13,19 @@
         "playground": "pnpm --filter @technance/worphling-playground start",
         "check": "cd packages/worphling pnpm build && pnpm type-check",
         "changeset": "changeset",
+        "format": "biome format .",
+        "format:fix": "biome format . --write",
+        "lint": "biome lint .",
+        "lint:fix": "biome lint . --write",
         "bump": "changeset version",
         "release": "changeset publish"
     },
     "packageManager": "pnpm@10.6.5",
     "devDependencies": {
-        "@changesets/changelog-github": "^0.5.1",
-        "@changesets/cli": "^2.29.6",
-        "vitest": "^3.2.4"
+        "@changesets/changelog-github": "catalog:",
+        "@changesets/cli": "catalog:",
+        "vitest": "catalog:",
+        "@biomejs/biome": "catalog:",
+        "@technance/code-style": "catalog:"
     }
 }
