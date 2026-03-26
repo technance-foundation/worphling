@@ -191,11 +191,17 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
             "Translate the provided keys and texts into their specified target languages.",
             "Always respond with valid JSON matching the input structure exactly.",
             "Do not wrap the response in a ```json code block.",
+            "Do not add, remove, rename, reorder, or restructure keys.",
             "Preserve ICU message structure exactly when present.",
+            "Preserve ICU argument names exactly.",
+            "Preserve plural, select, and selectordinal branch keys exactly, including required branches such as `other` and exact-match selectors such as `=0`.",
             "Preserve placeholders exactly when present.",
             "Preserve HTML-like or rich-text tags exactly when present.",
+            "Preserve escaping semantics exactly, including single-quote escaping used for literal ICU characters such as `{` and `}`.",
             ...promptContext.additionalInstructions,
-            exactLength ? "Translated responses must not exceed the length of their input." : undefined,
+            exactLength
+                ? "Translated responses should not exceed the length of their input when reasonably possible."
+                : undefined,
             contextInstructions ? `Additional translation instructions:\n${contextInstructions}` : undefined,
             `Example input: ${promptContext.exampleInput}`,
             `Example output: ${promptContext.exampleOutput}`,
