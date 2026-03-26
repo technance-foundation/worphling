@@ -1,4 +1,4 @@
-import type { DiffResult, LocaleFile, LocaleFiles, LocaleIssue, ValidationConfig } from "../types.js";
+import type { DiffResult, LocaleFile, LocaleFiles, LocaleIssue, TranslationPluginContract, ValidationConfig } from "../types.js";
 
 import { LocaleStructure } from "./LocaleStructure.js";
 
@@ -40,6 +40,11 @@ interface ValidationEngineInput {
  */
 export class ValidationEngine {
     /**
+     * Active translation plugin.
+     */
+    #plugin: TranslationPluginContract;
+
+    /**
      * Locale structure helper used for flattening locale files.
      */
     #localeStructure: LocaleStructure;
@@ -47,9 +52,11 @@ export class ValidationEngine {
     /**
      * Creates a new validation engine.
      *
+     * @param plugin - Active translation plugin
      * @param localeStructure - Optional locale structure helper
      */
-    constructor(localeStructure?: LocaleStructure) {
+    constructor(plugin: TranslationPluginContract, localeStructure?: LocaleStructure) {
+        this.#plugin = plugin;
         this.#localeStructure = localeStructure || new LocaleStructure();
     }
 
@@ -61,13 +68,14 @@ export class ValidationEngine {
      */
     validate(input: ValidationEngineInput): Array<LocaleIssue> {
         const issues: Array<LocaleIssue> = [];
+        const effectiveValidationConfig = this.#plugin.resolveValidationConfig(input.validationConfig);
         const flatSourceLocaleFile = this.#localeStructure.flatten(input.sourceLocaleFile);
 
         issues.push(
             ...this.#buildDiffIssues(
                 input.diffResult.missing,
                 "missing",
-                input.validationConfig.failOnMissingKeys ? "error" : "warning",
+                effectiveValidationConfig.failOnMissingKeys ? "error" : "warning",
                 "Missing translation entry.",
             ),
         );
@@ -75,7 +83,7 @@ export class ValidationEngine {
             ...this.#buildDiffIssues(
                 input.diffResult.extra,
                 "extra",
-                input.validationConfig.failOnExtraKeys ? "error" : "warning",
+                effectiveValidationConfig.failOnExtraKeys ? "error" : "warning",
                 "Extra translation entry not present in source locale.",
             ),
         );
@@ -83,7 +91,7 @@ export class ValidationEngine {
             ...this.#buildDiffIssues(
                 input.diffResult.modified,
                 "modified",
-                input.validationConfig.failOnModifiedSource ? "error" : "warning",
+                effectiveValidationConfig.failOnModifiedSource ? "error" : "warning",
                 "Source translation changed and requires retranslation.",
             ),
         );
@@ -100,7 +108,7 @@ export class ValidationEngine {
                     continue;
                 }
 
-                if (input.validationConfig.preservePlaceholders) {
+                if (effectiveValidationConfig.preservePlaceholders) {
                     const placeholderIssue = this.#validatePlaceholders(locale, key, sourceValue, targetValue);
 
                     if (placeholderIssue) {
@@ -108,7 +116,7 @@ export class ValidationEngine {
                     }
                 }
 
-                if (input.validationConfig.preserveIcuSyntax) {
+                if (effectiveValidationConfig.preserveIcuSyntax) {
                     const icuIssue = this.#validateIcuSyntax(locale, key, sourceValue, targetValue);
 
                     if (icuIssue) {
@@ -116,7 +124,7 @@ export class ValidationEngine {
                     }
                 }
 
-                if (input.validationConfig.preserveHtmlTags) {
+                if (effectiveValidationConfig.preserveHtmlTags) {
                     const tagIssue = this.#validateHtmlTags(locale, key, sourceValue, targetValue);
 
                     if (tagIssue) {

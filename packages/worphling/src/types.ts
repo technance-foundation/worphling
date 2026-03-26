@@ -575,6 +575,55 @@ export interface TranslationBatchResult {
 }
 
 /**
+ * Prompt context supplied by a translation plugin.
+ */
+export interface TranslationPluginPromptContext {
+    /**
+     * Additional plugin-specific system prompt instructions.
+     */
+    additionalInstructions: Array<string>;
+
+    /**
+     * Example input appropriate for the plugin.
+     */
+    exampleInput: string;
+
+    /**
+     * Example output appropriate for the plugin.
+     */
+    exampleOutput: string;
+}
+
+/**
+ * Contract for translation plugins.
+ *
+ * Plugins influence translation prompting and effective validation behavior.
+ */
+export interface TranslationPluginContract {
+    /**
+     * Stable plugin identifier.
+     */
+    readonly name: PluginName;
+
+    /**
+     * Returns prompt context used by translation providers.
+     *
+     * @returns Plugin prompt context
+     */
+    getPromptContext(): TranslationPluginPromptContext;
+
+    /**
+     * Resolves the effective validation config for the plugin.
+     *
+     * Plugins may strengthen validation behavior when their syntax requires it.
+     *
+     * @param config - Base validation config
+     * @returns Effective validation config
+     */
+    resolveValidationConfig(config: ValidationConfig): ValidationConfig;
+}
+
+/**
  * Contract for translation providers.
  *
  * Providers are intentionally decoupled from filesystem, diffing, and writing

@@ -1,12 +1,10 @@
 import { omit } from "lodash-es";
 
-import { ANSI_COLORS } from "../constants.js";
-import { LocaleDiffCalculator, LocaleStructure, ValidationEngine } from "../domain/index.js";
+import { LocaleDiffCalculator, LocaleStructure, TranslationPluginRegistry, ValidationEngine } from "../domain/index.js";
 import { JsonLocaleRepository, RunReportRepository, SnapshotRepository } from "../infrastructure/index.js";
-import { Translator } from "../providers/index.js";
+import { TranslationProviderFactory } from "../providers/index.js";
 import type {
     AppConfig,
-    DiffResult,
     FlatLocaleFiles,
     LocaleFiles,
     PlanAction,
@@ -87,17 +85,17 @@ export class App {
     constructor(config: AppConfig) {
         const localeStructure = new LocaleStructure();
         const localeDiffCalculator = new LocaleDiffCalculator(localeStructure);
+        const plugin = new TranslationPluginRegistry().resolve(config.config.plugin.name);
+        const translationProvider: TranslationProviderContract = new TranslationProviderFactory().create(config.config, plugin);
 
         this.#config = config;
         this.#localeRepository = new JsonLocaleRepository(config.config.localesDir, config.config.output);
         this.#snapshotRepository = new SnapshotRepository(localeStructure);
         this.#localeDiffCalculator = localeDiffCalculator;
         this.#runPlanner = new RunPlanner(localeDiffCalculator);
-        this.#validationEngine = new ValidationEngine(localeStructure);
+        this.#validationEngine = new ValidationEngine(plugin, localeStructure);
         this.#runReporter = new RunReporter();
         this.#runReportRepository = new RunReportRepository();
-
-        const translationProvider: TranslationProviderContract = new Translator(config.config);
         this.#translationExecutor = new TranslationExecutor(translationProvider, config.config.translation, config.config);
     }
 
@@ -127,9 +125,6 @@ export class App {
         const plan = this.#runPlanner.createPlan(diffResult, flags.command);
         const executionPolicy = this.#resolveExecutionPolicy(ciMode);
 
-        this.#logDetectedChanges(diffResult);
-        this.#logExecutionMode(executionPolicy, ciMode);
-
         let updatedTargetLocaleFiles = { ...targetLocaleFiles };
         let translatedKeys: FlatLocaleFiles = {};
         let translatedCount = 0;
@@ -147,10 +142,6 @@ export class App {
             }
 
             updatedTargetLocaleFiles = this.#applyPlannedExtraKeyRemovals(plan.actions, updatedTargetLocaleFiles);
-
-            if (runtimeConfig.output.sortKeys) {
-                console.log(ANSI_COLORS.yellow, "Sorting written locale files as requested...");
-            }
 
             const localeFilesToWrite = this.#collectLocaleFilesToWrite(plan.actions, updatedTargetLocaleFiles);
 
@@ -200,67 +191,6 @@ export class App {
         }
 
         return Object.fromEntries(Object.entries(locales).filter(([locale]) => selectedLocales.includes(locale)));
-    }
-
-    /**
-     * Logs detected diff counts in a stable order.
-     *
-     * @param diffResult - Structured diff result
-     */
-    #logDetectedChanges(diffResult: DiffResult): void {
-        const missingCount = this.#countFlatLocaleEntries(diffResult.missing);
-        const extraCount = this.#countFlatLocaleEntries(diffResult.extra);
-        const modifiedCount = this.#countFlatLocaleEntries(diffResult.modified);
-
-        if (missingCount > 0) {
-            console.log(ANSI_COLORS.yellow, `Found ${missingCount} missing translations across all languages.`);
-        }
-
-        if (extraCount > 0) {
-            console.log(
-                ANSI_COLORS.yellow,
-                `Found ${extraCount} extra translation key${extraCount > 1 ? "s" : ""} across all languages.`,
-            );
-        }
-
-        if (modifiedCount > 0) {
-            console.log(ANSI_COLORS.yellow, `Found ${modifiedCount} modified keys that need retranslation.`);
-        }
-
-        if (missingCount === 0 && extraCount === 0 && modifiedCount === 0) {
-            console.log(ANSI_COLORS.green, "All target languages are already translated and up to date.");
-        }
-    }
-
-    /**
-     * Logs the resolved execution mode for the current command.
-     *
-     * @param executionPolicy - Resolved execution policy
-     * @param ciMode - Whether CI mode is active
-     */
-    #logExecutionMode(
-        executionPolicy: {
-            executePlan: boolean;
-            writeFiles: boolean;
-            reason?: string;
-        },
-        ciMode: boolean,
-    ): void {
-        if (executionPolicy.reason) {
-            console.log(ANSI_COLORS.yellow, executionPolicy.reason);
-        }
-
-        if (ciMode) {
-            console.log(ANSI_COLORS.yellow, "CI mode is active. Locale files will not be modified.");
-        }
-
-        if (!executionPolicy.executePlan) {
-            return;
-        }
-
-        if (executionPolicy.writeFiles) {
-            console.log(ANSI_COLORS.yellow, "Applying planned locale changes...");
-        }
     }
 
     /**
@@ -425,7 +355,6 @@ export class App {
         const content = this.#runReporter.serialize(report, fileReportFormat);
 
         this.#runReportRepository.write(reportFilePath, content);
-        console.log(ANSI_COLORS.green, `Success: Report written to ${reportFilePath}`);
     }
 
     /**

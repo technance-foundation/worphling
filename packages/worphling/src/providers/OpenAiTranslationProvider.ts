@@ -1,7 +1,6 @@
 import { OpenAI } from "openai";
 
 import { DEFAULT_OPENAI_MODEL, DEFAULT_PROVIDER_TEMPERATURE } from "../constants.js";
-import { EXAMPLE_INPUT, EXAMPLE_NEXT_INTL_INPUT, EXAMPLE_NEXT_INTL_OUTPUT, EXAMPLE_OUTPUT } from "../core/examples.js";
 import { ProviderResponseValidationError } from "../errors.js";
 import type {
     FlatLocaleFile,
@@ -9,6 +8,7 @@ import type {
     ResolvedConfig,
     TranslationBatch,
     TranslationBatchResult,
+    TranslationPluginContract,
     TranslationProviderContract,
 } from "../types.js";
 
@@ -17,7 +17,7 @@ import type {
  *
  * This class is responsible only for:
  * - sending translation requests to the configured provider
- * - selecting the appropriate prompt examples for the active plugin
+ * - using plugin-supplied prompt context
  * - validating and parsing the provider response
  *
  * It does not perform filesystem operations, diff calculation, batching,
@@ -35,6 +35,11 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
     #config: ResolvedConfig;
 
     /**
+     * Active translation plugin.
+     */
+    #plugin: TranslationPluginContract;
+
+    /**
      * Stable provider identifier.
      */
     readonly name = "openai" as const;
@@ -43,9 +48,11 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
      * Creates a new translator instance.
      *
      * @param config - Fully resolved runtime configuration
+     * @param plugin - Active translation plugin
      */
-    constructor(config: ResolvedConfig) {
+    constructor(config: ResolvedConfig, plugin: TranslationPluginContract) {
         this.#config = config;
+        this.#plugin = plugin;
         this.#client = new OpenAI({
             apiKey: config.provider.apiKey,
         });
@@ -113,8 +120,7 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
     /**
      * Builds the provider payload for a single translation batch.
      *
-     * The payload shape matches the examples and keeps the target locale at the
-     * top level.
+     * The payload shape keeps the target locale at the top level.
      *
      * @param batch - Translation batch
      * @returns Provider payload
@@ -171,20 +177,20 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
      * @returns System prompt
      */
     #buildSystemPrompt(pluginName: PluginName, exactLength: boolean, contextInstructions?: string): string {
-        const isNextIntlPluginEnabled = pluginName === "next-intl";
-        const exampleInput = isNextIntlPluginEnabled ? EXAMPLE_NEXT_INTL_INPUT : EXAMPLE_INPUT;
-        const exampleOutput = isNextIntlPluginEnabled ? EXAMPLE_NEXT_INTL_OUTPUT : EXAMPLE_OUTPUT;
+        const promptContext = this.#plugin.getPromptContext();
 
         return [
             "You are a translation assistant.",
             "Translate the provided keys and texts into their specified target languages.",
             "Always respond with valid JSON matching the input structure exactly.",
             "Do not wrap the response in a ```json code block.",
+            `Active plugin: ${pluginName}.`,
             "Preserve placeholders, ICU syntax, and tags whenever present.",
+            ...promptContext.additionalInstructions,
             exactLength ? "Translated responses must not exceed the length of their input." : undefined,
             contextInstructions ? `Additional translation instructions:\n${contextInstructions}` : undefined,
-            `Example input: ${exampleInput}`,
-            `Example output: ${exampleOutput}`,
+            `Example input: ${promptContext.exampleInput}`,
+            `Example output: ${promptContext.exampleOutput}`,
         ]
             .filter(Boolean)
             .join("\n\n");
