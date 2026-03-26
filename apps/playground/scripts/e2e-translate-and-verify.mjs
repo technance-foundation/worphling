@@ -13,35 +13,22 @@ const PLAYGROUND_DIRECTORY_PATH = process.cwd();
 /**
  * Artifacts directory path.
  */
-const ARTIFACTS_DIRECTORY_PATH = path.join(
-    PLAYGROUND_DIRECTORY_PATH,
-    "artifacts",
-);
+const ARTIFACTS_DIRECTORY_PATH = path.join(PLAYGROUND_DIRECTORY_PATH, "artifacts");
 
 /**
  * Spanish locale file path.
  */
-const ES_LOCALE_FILE_PATH = path.join(
-    PLAYGROUND_DIRECTORY_PATH,
-    "locales",
-    "es.json",
-);
+const ES_LOCALE_FILE_PATH = path.join(PLAYGROUND_DIRECTORY_PATH, "locales", "es.json");
 
 /**
  * Translate report path.
  */
-const TRANSLATE_REPORT_FILE_PATH = path.join(
-    ARTIFACTS_DIRECTORY_PATH,
-    "e2e-translate-report.json",
-);
+const TRANSLATE_REPORT_FILE_PATH = path.join(ARTIFACTS_DIRECTORY_PATH, "e2e-translate-report.json");
 
 /**
  * Check report path.
  */
-const CHECK_REPORT_FILE_PATH = path.join(
-    ARTIFACTS_DIRECTORY_PATH,
-    "e2e-check-report.json",
-);
+const CHECK_REPORT_FILE_PATH = path.join(ARTIFACTS_DIRECTORY_PATH, "e2e-check-report.json");
 
 ensureOpenAiApiKey();
 prepareArtifactsDirectory();
@@ -56,14 +43,7 @@ assert(
 
 runCommand(
     "pnpm",
-    [
-        "exec",
-        "worphling",
-        "translate",
-        "--write",
-        "--report-file",
-        "./artifacts/e2e-translate-report.json",
-    ],
+    ["exec", "worphling", "translate", "--write", "--report-file", "./artifacts/e2e-translate-report.json"],
     PLAYGROUND_DIRECTORY_PATH,
 );
 
@@ -71,10 +51,7 @@ const translateReport = readJsonFile(TRANSLATE_REPORT_FILE_PATH);
 const translatedEsLocale = readJsonFile(ES_LOCALE_FILE_PATH);
 const translatedFlatEsLocale = flattenLocaleObject(translatedEsLocale);
 
-assert(
-    translateReport.summary.command === "translate",
-    'Expected translate report command to be "translate".',
-);
+assert(translateReport.summary.command === "translate", 'Expected translate report command to be "translate".');
 assert(
     translateReport.summary.translatedCount >= 14,
     `Expected translatedCount to be at least 14, received ${String(translateReport.summary.translatedCount)}.`,
@@ -103,28 +80,21 @@ const expectedTranslatedKeys = [
 
 for (const key of expectedTranslatedKeys) {
     assert(
-        typeof translatedFlatEsLocale[key] === "string" &&
-            translatedFlatEsLocale[key].trim().length > 0,
+        typeof translatedFlatEsLocale[key] === "string" && translatedFlatEsLocale[key].trim().length > 0,
         `Expected translated Spanish key "${key}" to exist and be non-empty after translate.`,
     );
 }
 
 assert(
-    translatedFlatEsLocale["app.auth.trade.description"].includes(
-        "{totalPayment}",
-    ),
+    translatedFlatEsLocale["app.auth.trade.description"].includes("{totalPayment}"),
     'Expected translated ICU message "app.auth.trade.description" to preserve "{totalPayment}".',
 );
 assert(
-    translatedFlatEsLocale["app.auth.trade.description"].includes(
-        "{orderMode, select,",
-    ),
+    translatedFlatEsLocale["app.auth.trade.description"].includes("{orderMode, select,"),
     'Expected translated ICU message "app.auth.trade.description" to preserve the select structure.',
 );
 assert(
-    translatedFlatEsLocale["app.auth.trade.status"].includes(
-        "{status, select,",
-    ),
+    translatedFlatEsLocale["app.auth.trade.status"].includes("{status, select,"),
     'Expected translated ICU message "app.auth.trade.status" to preserve the select structure.',
 );
 assert(
@@ -134,22 +104,13 @@ assert(
 
 runCommand(
     "pnpm",
-    [
-        "exec",
-        "worphling",
-        "check",
-        "--report-file",
-        "./artifacts/e2e-check-report.json",
-    ],
+    ["exec", "worphling", "check", "--report-file", "./artifacts/e2e-check-report.json"],
     PLAYGROUND_DIRECTORY_PATH,
 );
 
 const checkReport = readJsonFile(CHECK_REPORT_FILE_PATH);
 
-assert(
-    checkReport.summary.command === "check",
-    'Expected check report command to be "check".',
-);
+assert(checkReport.summary.command === "check", 'Expected check report command to be "check".');
 assert(
     checkReport.summary.missingCount === 0,
     `Expected missingCount to be 0 after translate, received ${String(checkReport.summary.missingCount)}.`,
@@ -169,10 +130,7 @@ console.log("[E2E] Playground translate + check verification passed.");
  * Ensures the OpenAI API key is available.
  */
 function ensureOpenAiApiKey() {
-    assert(
-        Boolean(process.env.OPENAI_API_KEY),
-        "Missing OPENAI_API_KEY environment variable.",
-    );
+    assert(Boolean(process.env.OPENAI_API_KEY), "Missing OPENAI_API_KEY environment variable.");
 }
 
 /**
