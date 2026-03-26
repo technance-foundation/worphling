@@ -78,6 +78,33 @@ export class ConfigValidationError extends WorphlingError {
 }
 
 /**
+ * Thrown when a configured translation context file cannot be read.
+ */
+export class TranslationContextReadError extends WorphlingError {
+    /**
+     * Absolute context file path that failed to be read.
+     */
+    readonly filePath: string;
+
+    /**
+     * Original failure reason.
+     */
+    readonly reason: string;
+
+    /**
+     * Creates a new translation-context-read error.
+     *
+     * @param filePath - Context file path
+     * @param reason - Underlying failure reason
+     */
+    constructor(filePath: string, reason: string) {
+        super(`Failed to read translation context file at ${filePath}: ${reason}`);
+        this.filePath = filePath;
+        this.reason = reason;
+    }
+}
+
+/**
  * Thrown when a translation provider response is malformed or incomplete.
  */
 export class ProviderResponseValidationError extends WorphlingError {

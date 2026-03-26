@@ -40,6 +40,11 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
     #plugin: TranslationPluginContract;
 
     /**
+     * Optional preloaded translation context instructions.
+     */
+    #contextInstructions?: string;
+
+    /**
      * Stable provider identifier.
      */
     readonly name = "openai" as const;
@@ -49,10 +54,12 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
      *
      * @param config - Fully resolved runtime configuration
      * @param plugin - Active translation plugin
+     * @param contextInstructions - Optional preloaded translation context instructions
      */
-    constructor(config: ResolvedConfig, plugin: TranslationPluginContract) {
+    constructor(config: ResolvedConfig, plugin: TranslationPluginContract, contextInstructions?: string) {
         this.#config = config;
         this.#plugin = plugin;
+        this.#contextInstructions = contextInstructions;
         this.#client = new OpenAI({
             apiKey: config.provider.apiKey,
         });
@@ -91,7 +98,6 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
         const exactLength = config.translation.exactLength;
         const model = config.provider.model || DEFAULT_OPENAI_MODEL;
         const temperature = config.provider.temperature ?? DEFAULT_PROVIDER_TEMPERATURE;
-        const contextInstructions = this.#readContextInstructions();
         const payload = this.#buildBatchPayload(batch);
 
         const response = await this.#client.chat.completions.create({
@@ -102,7 +108,7 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
             messages: [
                 {
                     role: "system",
-                    content: this.#buildSystemPrompt(pluginName, exactLength, contextInstructions),
+                    content: this.#buildSystemPrompt(pluginName, exactLength),
                 },
                 {
                     role: "user",
@@ -173,10 +179,9 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
      *
      * @param pluginName - Active plugin name
      * @param exactLength - Whether exact-length guidance is enabled
-     * @param contextInstructions - Optional extra translation instructions
      * @returns System prompt
      */
-    #buildSystemPrompt(pluginName: PluginName, exactLength: boolean, contextInstructions?: string): string {
+    #buildSystemPrompt(pluginName: PluginName, exactLength: boolean): string {
         const promptContext = this.#plugin.getPromptContext();
 
         return [
@@ -188,24 +193,12 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
             "Preserve placeholders, ICU syntax, and tags whenever present.",
             ...promptContext.additionalInstructions,
             exactLength ? "Translated responses must not exceed the length of their input." : undefined,
-            contextInstructions ? `Additional translation instructions:\n${contextInstructions}` : undefined,
+            this.#contextInstructions ? `Additional translation instructions:\n${this.#contextInstructions}` : undefined,
             `Example input: ${promptContext.exampleInput}`,
             `Example output: ${promptContext.exampleOutput}`,
         ]
             .filter(Boolean)
             .join("\n\n");
-    }
-
-    /**
-     * Reads optional translation context instructions.
-     *
-     * The current implementation intentionally returns `undefined` until the
-     * context-file loading layer is introduced.
-     *
-     * @returns Optional context instructions
-     */
-    #readContextInstructions(): string | undefined {
-        return undefined;
     }
 
     /**

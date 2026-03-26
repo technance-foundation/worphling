@@ -1,4 +1,5 @@
 import { UnsupportedProviderError } from "../errors.js";
+import { TranslationContextRepository } from "../infrastructure/index.js";
 import type { ResolvedConfig, TranslationPluginContract, TranslationProviderContract } from "../types.js";
 
 import { OpenAiTranslationProvider } from "./OpenAiTranslationProvider.js";
@@ -16,8 +17,10 @@ export class TranslationProviderFactory {
      * @throws {UnsupportedProviderError} When the provider is not supported
      */
     create(config: ResolvedConfig, plugin: TranslationPluginContract): TranslationProviderContract {
+        const contextInstructions = new TranslationContextRepository().read(config.translation.contextFile);
+
         if (config.provider.name === "openai") {
-            return new OpenAiTranslationProvider(config, plugin);
+            return new OpenAiTranslationProvider(config, plugin, contextInstructions);
         }
 
         throw new UnsupportedProviderError(config.provider.name);
