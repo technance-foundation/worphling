@@ -1,3 +1,5 @@
+import type OpenAI from "openai";
+
 /**
  * Supported config file extensions, checked in declaration order.
  */
@@ -38,7 +40,7 @@ export type SupportedReportFormat = (typeof SUPPORTED_REPORT_FORMATS)[number];
 /**
  * Default OpenAI model used when none is configured explicitly.
  */
-export const DEFAULT_OPENAI_MODEL = "gpt-5.1-2025-11-13";
+export const DEFAULT_OPENAI_MODEL: OpenAI.ChatModel = "gpt-5.1-2025-11-13";
 
 /**
  * Default JSON indentation used when writing locale files.

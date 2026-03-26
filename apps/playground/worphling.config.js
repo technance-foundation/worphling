@@ -20,7 +20,7 @@ const config = {
     provider: {
         name: "openai",
         apiKey,
-        model: "gpt-5-mini", // or your preferred model
+        model: "gpt-5.1-2025-11-13", // or your preferred model
         temperature: 0,
     },
 
