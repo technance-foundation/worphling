@@ -1,10 +1,10 @@
 import { omit } from "lodash-es";
 
 import { ANSI_COLORS } from "../constants.js";
-import { LocaleDiffCalculator, LocaleStructure } from "../domain/index.js";
+import { LocaleDiffCalculator, LocaleStructure, ValidationEngine } from "../domain/index.js";
 import { JsonLocaleRepository, RunReportRepository, SnapshotRepository } from "../infrastructure/index.js";
 import { Translator } from "../providers/index.js";
-import type { AppConfig, FlatLocaleFiles, LocaleFiles, PlanAction, ReportFormat, RunReport } from "../types.js";
+import type { AppConfig, DiffResult, FlatLocaleFiles, LocaleFiles, PlanAction, ReportFormat, RunReport } from "../types.js";
 import { ExitCode } from "../types.js";
 
 import { RunPlanner } from "./RunPlanner.js";
@@ -19,6 +19,7 @@ import { RunReporter } from "./RunReporter.js";
  * - building the diff and execution plan
  * - invoking the translation provider when policy allows
  * - writing updated locale files
+ * - validating the effective locale state
  * - producing structured run reports
  */
 export class App {
@@ -48,6 +49,11 @@ export class App {
     #runPlanner: RunPlanner;
 
     /**
+     * Validation engine used to collect structured validation issues.
+     */
+    #validationEngine: ValidationEngine;
+
+    /**
      * Reporter used to build and serialize run reports.
      */
     #runReporter: RunReporter;
@@ -71,6 +77,7 @@ export class App {
         this.#snapshotRepository = new SnapshotRepository(localeStructure);
         this.#localeDiffCalculator = localeDiffCalculator;
         this.#runPlanner = new RunPlanner(localeDiffCalculator);
+        this.#validationEngine = new ValidationEngine(localeStructure);
         this.#runReporter = new RunReporter();
         this.#runReportRepository = new RunReportRepository();
     }
@@ -138,6 +145,13 @@ export class App {
             }
         }
 
+        const issues = this.#validationEngine.validate({
+            sourceLocaleFile,
+            targetLocaleFiles: updatedTargetLocaleFiles,
+            diffResult,
+            validationConfig: runtimeConfig.validation,
+        });
+
         const report = this.#runReporter.buildReport({
             command: flags.command,
             sourceLocale,
@@ -145,7 +159,7 @@ export class App {
             diffResult,
             translatedCount,
             writtenFileCount,
-            validationConfig: runtimeConfig.validation,
+            issues,
         });
 
         this.#emitReport(report, ciMode);
@@ -174,7 +188,7 @@ export class App {
      *
      * @param diffResult - Structured diff result
      */
-    #logDetectedChanges(diffResult: { missing: FlatLocaleFiles; extra: FlatLocaleFiles; modified: FlatLocaleFiles }): void {
+    #logDetectedChanges(diffResult: DiffResult): void {
         const missingCount = this.#countFlatLocaleEntries(diffResult.missing);
         const extraCount = this.#countFlatLocaleEntries(diffResult.extra);
         const modifiedCount = this.#countFlatLocaleEntries(diffResult.modified);
@@ -419,8 +433,6 @@ export class App {
      * active policy flags.
      *
      * @param report - Structured run report
-     * @param executionPolicy - Resolved execution policy
-     * @param ciMode - Whether CI mode is active
      * @returns Process exit code
      */
     #resolveExitCode(report: RunReport): ExitCode {
