@@ -1,6 +1,5 @@
 import { merge } from "lodash-es";
 
-import { ANSI_COLORS } from "../constants.js";
 import type { FlatLocaleFile, FlatLocaleFiles, LocaleFile, LocaleFiles } from "../types.js";
 
 import { LocaleStructure } from "./LocaleStructure.js";
@@ -162,19 +161,10 @@ export class LocaleDiffCalculator {
     removeAllExtraKeys(source: LocaleFile, targets: LocaleFiles): LocaleFiles {
         const extraKeysByLocale = this.findExtraKeys(source, targets);
         const cleanedTargets: LocaleFiles = {};
-        let totalKeysRemoved = 0;
 
         for (const [locale, target] of Object.entries(targets)) {
             const extraKeys = extraKeysByLocale[locale] || {};
             cleanedTargets[locale] = this.removeExtraKeys(target, extraKeys);
-            totalKeysRemoved += Object.keys(extraKeys).length;
-        }
-
-        if (totalKeysRemoved > 0) {
-            console.log(
-                ANSI_COLORS.yellow,
-                `Removed ${totalKeysRemoved} extra translation key${totalKeysRemoved > 1 ? "s" : ""} across all languages.`,
-            );
         }
 
         return cleanedTargets;

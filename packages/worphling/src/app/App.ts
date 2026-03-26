@@ -2,13 +2,14 @@ import { omit } from "lodash-es";
 
 import { LocaleDiffCalculator, LocaleStructure, TranslationPluginRegistry, ValidationEngine } from "../domain/index.js";
 import { TranslationProviderExecutionError } from "../errors.js";
-import { JsonLocaleRepository, RunReportRepository, SnapshotRepository } from "../infrastructure/index.js";
+import { ConsoleLogger, JsonLocaleRepository, RunReportRepository, SnapshotRepository } from "../infrastructure/index.js";
 import { TranslationProviderFactory } from "../providers/index.js";
 import type {
     AppConfig,
     FlatLocaleFiles,
     LocaleFiles,
     LocaleIssue,
+    Logger,
     PlanAction,
     ReportFormat,
     RunReport,
@@ -16,10 +17,10 @@ import type {
 } from "../types.js";
 import { ExitCode } from "../types.js";
 
+import { RunConsoleReporter } from "./RunConsoleReporter.js";
 import { RunPlanner } from "./RunPlanner.js";
 import { RunReporter } from "./RunReporter.js";
 import { TranslationExecutor } from "./TranslationExecutor.js";
-
 /**
  * Main Worphling application runtime.
  *
@@ -37,6 +38,11 @@ export class App {
      * Runtime configuration and CLI flags for the current invocation.
      */
     #config: AppConfig;
+
+    /**
+     * Runtime logger used across the application.
+     */
+    #logger: Logger;
 
     /**
      * Locale file repository used for filesystem access.
@@ -64,6 +70,11 @@ export class App {
     #validationEngine: ValidationEngine;
 
     /**
+     * Human-facing console reporter for runtime logs.
+     */
+    #runConsoleReporter: RunConsoleReporter;
+
+    /**
      * Reporter used to build and serialize run reports.
      */
     #runReporter: RunReporter;
@@ -89,20 +100,29 @@ export class App {
         const localeDiffCalculator = new LocaleDiffCalculator(localeStructure);
         const plugin = new TranslationPluginRegistry().resolve(config.config.plugin.name);
         const translationProvider: TranslationProviderContract = new TranslationProviderFactory().create(config.config, plugin);
+        const logger = config.logger || new ConsoleLogger();
 
         this.#config = config;
+        this.#logger = logger;
         this.#localeRepository = new JsonLocaleRepository(
             config.config.localesDir,
             config.config.filePattern,
             config.config.output,
+            logger,
         );
         this.#snapshotRepository = new SnapshotRepository(localeStructure);
         this.#localeDiffCalculator = localeDiffCalculator;
         this.#runPlanner = new RunPlanner(localeDiffCalculator);
         this.#validationEngine = new ValidationEngine(plugin, localeStructure);
+        this.#runConsoleReporter = new RunConsoleReporter(logger);
         this.#runReporter = new RunReporter();
         this.#runReportRepository = new RunReportRepository();
-        this.#translationExecutor = new TranslationExecutor(translationProvider, config.config.translation, config.config);
+        this.#translationExecutor = new TranslationExecutor(
+            translationProvider,
+            config.config.translation,
+            config.config,
+            logger,
+        );
     }
 
     /**
@@ -139,12 +159,14 @@ export class App {
         const plan = this.#runPlanner.createPlan(diffResult, flags.command);
         const executionPolicy = this.#resolveExecutionPolicy(ciMode);
 
+        this.#runConsoleReporter.logDetectedChanges(diffResult);
+        this.#runConsoleReporter.logExecutionMode(executionPolicy, ciMode);
+
         let updatedTargetLocaleFiles = { ...targetLocaleFiles };
         let translatedKeys: FlatLocaleFiles = {};
         let translatedCount = 0;
         let writtenFileCount = 0;
         let providerIssues: Array<LocaleIssue> = [];
-        let hasProviderFailure = false;
 
         if (executionPolicy.executePlan && plan.actions.length > 0) {
             try {
@@ -182,7 +204,6 @@ export class App {
                 }
             } catch (error) {
                 if (error instanceof TranslationProviderExecutionError) {
-                    hasProviderFailure = true;
                     providerIssues = [
                         {
                             type: "provider-error",
@@ -216,7 +237,7 @@ export class App {
             translatedCount,
             writtenFileCount,
             issues,
-            hasProviderFailure,
+            hasProviderFailure: providerIssues.length > 0,
         });
 
         this.#emitReport(report, ciMode);
@@ -391,7 +412,7 @@ export class App {
             const consoleReportFormat = this.#resolveReportFormat(flags.reportFormat, undefined, "markdown");
             const content = this.#runReporter.serialize(report, consoleReportFormat);
 
-            console.log(content);
+            this.#logger.info(content.trimEnd());
         }
 
         if (!reportFilePath) {
@@ -402,6 +423,7 @@ export class App {
         const content = this.#runReporter.serialize(report, fileReportFormat);
 
         this.#runReportRepository.write(reportFilePath, content);
+        this.#runConsoleReporter.logReportWritten(reportFilePath);
     }
 
     /**

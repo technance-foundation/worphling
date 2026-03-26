@@ -412,6 +412,13 @@ export interface AppConfig {
      * Parsed CLI flags for the current invocation.
      */
     flags: CliFlags;
+
+    /**
+     * Optional runtime logger.
+     *
+     * When omitted, the app will create its default console logger.
+     */
+    logger?: Logger;
 }
 
 /**
@@ -764,4 +771,40 @@ export enum ExitCode {
      * Translation provider failed.
      */
     ProviderError = 5,
+}
+
+/**
+ * Contract for runtime logging.
+ *
+ * This keeps user-facing output consistent across the CLI, app orchestration,
+ * repositories, and execution collaborators.
+ */
+export interface Logger {
+    /**
+     * Logs a neutral informational message.
+     *
+     * @param message - Message to write
+     */
+    info(message: string): void;
+
+    /**
+     * Logs a success message.
+     *
+     * @param message - Message to write
+     */
+    success(message: string): void;
+
+    /**
+     * Logs a warning message.
+     *
+     * @param message - Message to write
+     */
+    warn(message: string): void;
+
+    /**
+     * Logs an error message.
+     *
+     * @param message - Message to write
+     */
+    error(message: string): void;
 }

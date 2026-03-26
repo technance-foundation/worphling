@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
 import { App, ConfigLoader } from "../app/index.js";
-import { ANSI_COLORS } from "../constants.js";
 import {
     ConfigValidationError,
     ProviderResponseValidationError,
     TranslationProviderExecutionError,
     WorphlingError,
 } from "../errors.js";
+import { ConsoleLogger } from "../infrastructure/index.js";
 import type { ExitCode as ExitCodeType } from "../types.js";
 import { ExitCode } from "../types.js";
 
@@ -25,6 +25,8 @@ export * from "../types.js";
  * - mapping domain failures to stable process exit codes
  */
 (async () => {
+    const logger = new ConsoleLogger();
+
     try {
         const cli = new Cli();
         const configLoader = new ConfigLoader(cli.flags.configPath);
@@ -33,6 +35,7 @@ export * from "../types.js";
         const app = new App({
             config,
             flags: cli.flags,
+            logger,
         });
 
         const statusCode = await app.run();
@@ -41,9 +44,9 @@ export * from "../types.js";
         const statusCode = resolveExitCode(error);
 
         if (error instanceof Error) {
-            console.error(ANSI_COLORS.red, `Error: ${error.message}`);
+            logger.error(`Error: ${error.message}`);
         } else {
-            console.error(ANSI_COLORS.red, "Error: Unknown error.");
+            logger.error("Error: Unknown error.");
         }
 
         process.exit(statusCode);

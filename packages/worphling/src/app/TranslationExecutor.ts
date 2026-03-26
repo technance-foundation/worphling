@@ -1,8 +1,8 @@
-import { ANSI_COLORS } from "../constants.js";
 import { TranslationProviderExecutionError } from "../errors.js";
 import type {
     FlatLocaleFile,
     FlatLocaleFiles,
+    Logger,
     PlanAction,
     ResolvedConfig,
     TranslationBatch,
@@ -52,6 +52,11 @@ interface CompletedTranslationBatch {
  */
 export class TranslationExecutor {
     /**
+     * Runtime logger used for execution messages.
+     */
+    #logger: Logger;
+
+    /**
      * Translation provider used for batch execution.
      */
     #provider: TranslationProviderContract;
@@ -72,11 +77,18 @@ export class TranslationExecutor {
      * @param provider - Translation provider
      * @param translationConfig - Translation execution config
      * @param runtimeConfig - Fully resolved runtime config
+     * @param logger - Runtime logger
      */
-    constructor(provider: TranslationProviderContract, translationConfig: TranslationConfig, runtimeConfig: ResolvedConfig) {
+    constructor(
+        provider: TranslationProviderContract,
+        translationConfig: TranslationConfig,
+        runtimeConfig: ResolvedConfig,
+        logger: Logger,
+    ) {
         this.#provider = provider;
         this.#translationConfig = translationConfig;
         this.#runtimeConfig = runtimeConfig;
+        this.#logger = logger;
     }
 
     /**
@@ -93,8 +105,7 @@ export class TranslationExecutor {
             return {};
         }
 
-        console.log(
-            ANSI_COLORS.yellow,
+        this.#logger.warn(
             `Executing ${plannedBatches.length} translation batch${plannedBatches.length > 1 ? "es" : ""} with concurrency ${this.#translationConfig.concurrency}.`,
         );
 
@@ -219,8 +230,7 @@ export class TranslationExecutor {
 
             try {
                 if (maximumAttempts > 1) {
-                    console.log(
-                        ANSI_COLORS.yellow,
+                    this.#logger.warn(
                         `Translating locale "${plannedBatch.locale}" batch ${plannedBatch.batchIndex + 1}, attempt ${currentAttempt} of ${maximumAttempts}.`,
                     );
                 }
@@ -236,8 +246,7 @@ export class TranslationExecutor {
                     break;
                 }
 
-                console.log(
-                    ANSI_COLORS.yellow,
+                this.#logger.warn(
                     `Retrying locale "${plannedBatch.locale}" batch ${plannedBatch.batchIndex + 1} after failure: ${reason}`,
                 );
             }

@@ -1,10 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { ANSI_COLORS } from "../constants.js";
 import { LocaleFileReadError, LocaleFileWriteError } from "../errors.js";
-import type { LocaleFile, LocaleFiles, OutputConfig } from "../types.js";
-
+import type { LocaleFile, LocaleFiles, Logger, OutputConfig } from "../types.js";
 /**
  * Repository responsible for reading and writing locale JSON files on disk.
  *
@@ -13,6 +11,11 @@ import type { LocaleFile, LocaleFiles, OutputConfig } from "../types.js";
  * - writing locale files using the configured output formatting
  */
 export class JsonLocaleRepository {
+    /**
+     * Runtime logger used for write notifications.
+     */
+    #logger: Logger;
+
     /**
      * Absolute path to the locales directory.
      */
@@ -34,11 +37,13 @@ export class JsonLocaleRepository {
      * @param localesDirectoryPath - Directory containing locale files
      * @param filePattern - Configured locale file pattern
      * @param output - Output formatting configuration
+     * @param logger - Runtime logger
      */
-    constructor(localesDirectoryPath: string, filePattern: string, output: OutputConfig) {
+    constructor(localesDirectoryPath: string, filePattern: string, output: OutputConfig, logger: Logger) {
         this.#localesDirectoryPath = path.resolve(localesDirectoryPath);
         this.#filePattern = filePattern;
         this.#output = output;
+        this.#logger = logger;
     }
 
     /**
@@ -137,7 +142,7 @@ export class JsonLocaleRepository {
 
             fs.writeFileSync(filePath, finalContent, "utf-8");
 
-            console.log(ANSI_COLORS.green, `Success: File written for locale "${locale}" at ${filePath}`);
+            this.#logger.success(`Success: File written for locale "${locale}" at ${filePath}`);
         } catch (error) {
             const reason = error instanceof Error ? error.message : String(error);
             throw new LocaleFileWriteError(filePath, reason);

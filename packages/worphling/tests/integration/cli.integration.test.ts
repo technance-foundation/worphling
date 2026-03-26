@@ -33,6 +33,9 @@ test("cli check exits with ValidationError when missing keys are configured as e
 
         assert.equal(result.exitCode, ExitCode.ValidationError);
         assert.equal(result.stderr, "");
+        assert.match(result.stdout, /Found 1 missing translations across all languages\./);
+        assert.match(result.stdout, /Running in analysis mode\./);
+        assert.match(result.stdout, /Success: Report written to /);
 
         const report = workspace.readJsonFile<RunReport>(workspace.reportFilePath);
 
@@ -65,14 +68,16 @@ test("cli fix --write removes extra keys from disk", async () => {
         const result = await workspace.runCli(["fix", "--write"]);
 
         assert.equal(result.exitCode, ExitCode.Success);
+        assert.equal(result.stderr, "");
+        assert.match(result.stdout, /Found 1 extra translation key across all languages\./);
+        assert.match(result.stdout, /Applying planned locale changes\.\.\./);
+        assert.match(result.stdout, /Success: File written for locale "fa"/);
 
         const localeFile = workspace.readLocale("fa");
 
         assert.deepEqual(localeFile, {
             greeting: "سلام",
         });
-
-        assert.match(result.stdout, /Success: File written for locale "fa"/);
     } finally {
         workspace.cleanup();
     }
@@ -97,13 +102,19 @@ test("cli report writes markdown when report file ends with .md", async () => {
         const result = await workspace.runCli(["report", "--report-file", markdownReportPath]);
 
         assert.equal(result.exitCode, ExitCode.Success);
+        assert.equal(result.stderr, "");
+        assert.match(result.stdout, /Found 1 missing translations across all languages\./);
+        assert.match(result.stdout, /Running in analysis mode\./);
+        assert.match(result.stdout, /# Worphling Run Report/);
+        assert.match(result.stdout, /## Summary/);
+        assert.match(result.stdout, /## Issues/);
+        assert.match(result.stdout, /Success: Report written to /);
 
         const markdownContent = workspace.readTextFile(markdownReportPath);
 
         assert.match(markdownContent, /# Worphling Run Report/);
         assert.match(markdownContent, /## Summary/);
         assert.match(markdownContent, /## Issues/);
-        assert.match(result.stdout, /# Worphling Run Report/);
     } finally {
         workspace.cleanup();
     }
@@ -126,6 +137,10 @@ test("cli check in CI mode writes a JSON report file", async () => {
         const result = await workspace.runCli(["check", "--ci", "--report-file", workspace.reportFilePath]);
 
         assert.equal(result.exitCode, ExitCode.Success);
+        assert.equal(result.stderr, "");
+        assert.match(result.stdout, /Found 1 missing translations across all languages\./);
+        assert.match(result.stdout, /Running in analysis mode\./);
+        assert.match(result.stdout, /Success: Report written to /);
 
         const report = workspace.readJsonFile<RunReport>(workspace.reportFilePath);
 
@@ -154,6 +169,10 @@ test("cli sync --write removes extra keys when no translation work is needed", a
         const result = await workspace.runCli(["sync", "--write"]);
 
         assert.equal(result.exitCode, ExitCode.Success);
+        assert.equal(result.stderr, "");
+        assert.match(result.stdout, /Found 1 extra translation key across all languages\./);
+        assert.match(result.stdout, /Applying planned locale changes\.\.\./);
+        assert.match(result.stdout, /Success: File written for locale "fa"/);
 
         const localeFile = workspace.readLocale("fa");
 
