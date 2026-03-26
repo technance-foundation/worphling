@@ -6,7 +6,8 @@
     "dependencies": {
         "lodash-es": "catalog:",
         "minimist": "catalog:",
-        "openai": "catalog:"
+        "openai": "catalog:",
+        "picocolors": "catalog:"
     },
     "description": "Simplify your translation workflow using Worphling. Synchronize translations and automate.",
     "devDependencies": {

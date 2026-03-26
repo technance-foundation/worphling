@@ -22,10 +22,10 @@
     },
     "packageManager": "pnpm@10.6.5",
     "devDependencies": {
+        "@biomejs/biome": "catalog:",
         "@changesets/changelog-github": "catalog:",
         "@changesets/cli": "catalog:",
-        "vitest": "catalog:",
-        "@biomejs/biome": "catalog:",
-        "@technance/code-style": "catalog:"
+        "@technance/code-style": "catalog:",
+        "vitest": "catalog:"
     }
 }

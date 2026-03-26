@@ -39,6 +39,9 @@ catalogs:
     openai:
       specifier: ^6.10.0
       version: 6.10.0
+    picocolors:
+      specifier: ^1.1.1
+      version: 1.1.1
     tsup:
       specifier: ^8.5.1
       version: 8.5.1
@@ -96,6 +99,9 @@ importers:
       openai:
         specifier: 'catalog:'
         version: 6.10.0
+      picocolors:
+        specifier: 'catalog:'
+        version: 1.1.1
     devDependencies:
       '@types/lodash-es':
         specifier: 'catalog:'
@@ -115,6 +121,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.0.15(@types/node@24.10.2)(tsx@4.21.0)
 
 packages:
 
