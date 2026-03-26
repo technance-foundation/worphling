@@ -19,11 +19,19 @@ env:
 jobs:
     check:
         runs-on: ubuntu-latest
+
         steps:
-            - name: Check
-              uses: technance-foundation/github-action-check@main
+            - name: Check out repository
+              uses: actions/checkout@v4
+
+            - name: Setup repository
+              uses: technance-foundation/github-actions/setup@main
               with:
-                  node-version: 22
-                  pnpm-version: 10.6.5
-                  check-command: "pnpm run check"
+                  node-version: "24.14.0"
+                  pnpm-version: "10.33.0"
                   npm-token: ${{ secrets.NPM_TOKEN }}
+                  install: "pnpm install --frozen-lockfile"
+                  build: "false"
+
+            - name: Run check
+              run: pnpm run check
