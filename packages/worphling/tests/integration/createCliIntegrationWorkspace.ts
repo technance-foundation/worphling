@@ -309,7 +309,7 @@ async function buildCliAndResolveEntryPath(): Promise<string> {
     const currentFilePath = fileURLToPath(import.meta.url);
     const currentDirectoryPath = path.dirname(currentFilePath);
     const packageDirectoryPath = path.resolve(currentDirectoryPath, "..", "..");
-    const builtCliPath = path.join(packageDirectoryPath, "dist", "index.js");
+    const builtCliPath = path.join(packageDirectoryPath, "dist", "index.mjs");
 
     await execFileAsync("pnpm", ["build"], {
         cwd: packageDirectoryPath,
