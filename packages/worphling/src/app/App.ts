@@ -1,51 +1,86 @@
 import { omit } from "lodash-es";
 
-import { ANSI_COLORS, SUCCESS_STATUS_CODE } from "../constants";
-import { JsonProcessor, LangProcessor, Translator } from "../core";
-import type { AppConfig, FlatLangFiles, LangFiles } from "../types";
+import { ANSI_COLORS } from "../constants.js";
+import { LocaleDiffCalculator, LocaleStructure } from "../domain/index.js";
+import { JsonLocaleRepository, SnapshotRepository } from "../infrastructure/index.js";
+import { Translator } from "../providers/index.js";
+import type { AppConfig, FlatLocaleFiles, LocaleFile, LocaleFiles } from "../types.js";
+import { ExitCode } from "../types.js";
 
+/**
+ * Main Worphling application runtime.
+ *
+ * This class orchestrates:
+ * - reading locale files
+ * - identifying source and target locales
+ * - detecting missing and modified keys
+ * - invoking the translation provider when needed
+ * - writing updated locale files
+ */
 export class App {
-    private config: AppConfig;
+    /**
+     * Runtime configuration and CLI flags for the current invocation.
+     */
+    #config: AppConfig;
 
+    /**
+     * Locale file repository used for filesystem access.
+     */
+    #localeRepository: JsonLocaleRepository;
+
+    /**
+     * Snapshot repository used for source snapshot persistence.
+     */
+    #snapshotRepository: SnapshotRepository;
+
+    /**
+     * Locale diff calculator used for diffing and merging locale state.
+     */
+    #localeDiffCalculator: LocaleDiffCalculator;
+
+    /**
+     * Creates a new Worphling runtime application.
+     *
+     * @param config - Runtime config and CLI flags
+     */
     constructor(config: AppConfig) {
-        this.config = config;
+        const localeStructure = new LocaleStructure();
+
+        this.#config = config;
+        this.#localeRepository = new JsonLocaleRepository(config.config.localesDir, config.config.output);
+        this.#snapshotRepository = new SnapshotRepository(localeStructure);
+        this.#localeDiffCalculator = new LocaleDiffCalculator(localeStructure);
     }
 
-    public async run(): Promise<number> {
-        const data = JsonProcessor.readAll(this.config.source.directory);
-        const isSortingEnabled = this.config.flags.isSortingEnabled;
-        const sourceKey = JsonProcessor.extractLanguageKey(this.config.source.file);
-        const sourceData = data[sourceKey];
-        const initialTargets: LangFiles = omit(data, sourceKey);
+    /**
+     * Executes the application.
+     *
+     * @returns Process exit code
+     */
+    async run(): Promise<ExitCode> {
+        const runtimeConfig = this.#config.config;
+        const flags = this.#config.flags;
 
-        const cleanedTargets = LangProcessor.removeAllExtraKeys(sourceData, initialTargets);
+        const allLocaleFiles = this.#localeRepository.readAll();
+        const sourceLocale = runtimeConfig.sourceLocale;
+        const sourceLocaleFile = allLocaleFiles[sourceLocale];
 
-        const snapshot = JsonProcessor.loadSnapshot(this.config.source.directory);
-
-        const missingKeys = LangProcessor.findMissingKeys(sourceData, cleanedTargets);
-
-        const modifiedKeysMap: FlatLangFiles = {};
-        if (snapshot) {
-            const modifiedSourceKeys = LangProcessor.findModifiedKeys(sourceData, snapshot);
-
-            for (const lang of Object.keys(cleanedTargets)) {
-                if (Object.keys(modifiedSourceKeys).length > 0) {
-                    modifiedKeysMap[lang] = { ...modifiedSourceKeys };
-                }
-            }
+        if (!sourceLocaleFile) {
+            throw new Error(`Source locale "${sourceLocale}" was not found in "${runtimeConfig.localesDir}".`);
         }
 
-        const keysToTranslate: FlatLangFiles = {};
-        for (const lang of Object.keys({ ...missingKeys, ...modifiedKeysMap })) {
-            keysToTranslate[lang] = {
-                ...(missingKeys[lang] || {}),
-                ...(modifiedKeysMap[lang] || {}),
-            };
-        }
+        const allTargetLocaleFiles = omit(allLocaleFiles, sourceLocale) as LocaleFiles;
+        const targetLocaleFiles = this.#filterLocales(allTargetLocaleFiles);
 
-        // Log information about what we found
-        const missingCount = Object.values(missingKeys).reduce((sum, langKeys) => sum + Object.keys(langKeys).length, 0);
-        const modifiedCount = Object.values(modifiedKeysMap).reduce((sum, langKeys) => sum + Object.keys(langKeys).length, 0);
+        const cleanedTargetLocaleFiles = this.#localeDiffCalculator.removeAllExtraKeys(sourceLocaleFile, targetLocaleFiles);
+        const snapshot = this.#snapshotRepository.load(runtimeConfig.detection.snapshotFile);
+
+        const missingKeys = this.#localeDiffCalculator.findMissingKeys(sourceLocaleFile, cleanedTargetLocaleFiles);
+        const modifiedKeys = this.#buildModifiedKeysMap(sourceLocaleFile, cleanedTargetLocaleFiles, snapshot);
+        const keysToTranslate = this.#mergeKeysToTranslate(missingKeys, modifiedKeys);
+
+        const missingCount = this.#countFlatLocaleEntries(missingKeys);
+        const modifiedCount = this.#countFlatLocaleEntries(modifiedKeys);
 
         if (missingCount > 0) {
             console.log(ANSI_COLORS.yellow, `Found ${missingCount} missing translations across all languages.`);
@@ -55,35 +90,126 @@ export class App {
             console.log(ANSI_COLORS.yellow, `Found ${modifiedCount} modified keys that need retranslation.`);
         }
 
-        if (Object.entries(keysToTranslate).length === 0) {
+        if (!Object.keys(keysToTranslate).length) {
             console.log(ANSI_COLORS.green, "All target languages are already translated and up to date.");
 
-            if (isSortingEnabled) {
+            if (runtimeConfig.output.sortKeys) {
                 console.log(ANSI_COLORS.yellow, "Sorting all files as requested...");
             }
-            const allDataToWrite = { ...cleanedTargets, [sourceKey]: sourceData };
-            JsonProcessor.writeAll(this.config.source.directory, allDataToWrite, isSortingEnabled);
 
-            if (!snapshot) {
-                JsonProcessor.saveSnapshot(this.config.source.directory, sourceData);
+            if (!flags.dryRun) {
+                this.#localeRepository.writeAll({
+                    ...cleanedTargetLocaleFiles,
+                    [sourceLocale]: sourceLocaleFile,
+                });
             }
 
-            return SUCCESS_STATUS_CODE;
+            if (!snapshot && runtimeConfig.detection.snapshotFile && !flags.dryRun) {
+                this.#snapshotRepository.save(runtimeConfig.detection.snapshotFile, sourceLocale, sourceLocaleFile);
+            }
+
+            return ExitCode.Success;
         }
 
-        const translator = new Translator(this.config);
-        const translated = await translator.translate(keysToTranslate);
-        const updatedTargets = LangProcessor.updateTargetLangs(cleanedTargets, translated);
+        if (flags.command === "check" || flags.command === "report") {
+            return flags.failOnChanges || runtimeConfig.ci.failOnChanges ? ExitCode.ChangesDetected : ExitCode.Success;
+        }
 
-        if (isSortingEnabled) {
+        const translator = new Translator(runtimeConfig);
+        const translatedKeys = await translator.translateAll(keysToTranslate);
+        const updatedTargetLocaleFiles = this.#localeDiffCalculator.updateTargetLocales(cleanedTargetLocaleFiles, translatedKeys);
+
+        if (runtimeConfig.output.sortKeys) {
             console.log(ANSI_COLORS.yellow, "Sorting all files as requested...");
         }
 
-        const allDataToWrite = { ...updatedTargets, [sourceKey]: sourceData };
-        JsonProcessor.writeAll(this.config.source.directory, allDataToWrite, isSortingEnabled);
+        if (!flags.dryRun) {
+            this.#localeRepository.writeAll({
+                ...updatedTargetLocaleFiles,
+                [sourceLocale]: sourceLocaleFile,
+            });
 
-        JsonProcessor.saveSnapshot(this.config.source.directory, sourceData);
+            if (runtimeConfig.detection.snapshotFile) {
+                this.#snapshotRepository.save(runtimeConfig.detection.snapshotFile, sourceLocale, sourceLocaleFile);
+            }
+        }
 
-        return SUCCESS_STATUS_CODE;
+        return ExitCode.Success;
+    }
+
+    /**
+     * Filters target locales using the optional CLI locale filter.
+     *
+     * @param locales - All available target locale files
+     * @returns Filtered target locale files
+     */
+    #filterLocales(locales: LocaleFiles): LocaleFiles {
+        const selectedLocales = this.#config.flags.locales;
+
+        if (!selectedLocales?.length) {
+            return locales;
+        }
+
+        return Object.fromEntries(Object.entries(locales).filter(([locale]) => selectedLocales.includes(locale)));
+    }
+
+    /**
+     * Builds the modified-keys map for all target locales.
+     *
+     * @param sourceLocaleFile - Current source locale file
+     * @param targetLocaleFiles - Current target locale files
+     * @param snapshot - Previously stored source snapshot
+     * @returns Modified keys grouped by locale
+     */
+    #buildModifiedKeysMap(
+        sourceLocaleFile: LocaleFile,
+        targetLocaleFiles: LocaleFiles,
+        snapshot: Record<string, string> | null,
+    ): FlatLocaleFiles {
+        if (!snapshot) {
+            return {};
+        }
+
+        const modifiedSourceKeys = this.#localeDiffCalculator.findModifiedKeys(sourceLocaleFile, snapshot);
+
+        if (!Object.keys(modifiedSourceKeys).length) {
+            return {};
+        }
+
+        return Object.keys(targetLocaleFiles).reduce<FlatLocaleFiles>((result, locale) => {
+            result[locale] = { ...modifiedSourceKeys };
+            return result;
+        }, {});
+    }
+
+    /**
+     * Merges missing and modified keys into the final translation payload.
+     *
+     * @param missingKeys - Missing keys grouped by locale
+     * @param modifiedKeys - Modified keys grouped by locale
+     * @returns Keys to translate grouped by locale
+     */
+    #mergeKeysToTranslate(missingKeys: FlatLocaleFiles, modifiedKeys: FlatLocaleFiles): FlatLocaleFiles {
+        const locales = new Set<string>([...Object.keys(missingKeys), ...Object.keys(modifiedKeys)]);
+        const result: FlatLocaleFiles = {};
+
+        for (const locale of locales) {
+            result[locale] = {
+                ...(missingKeys[locale] || {}),
+                ...(modifiedKeys[locale] || {}),
+            };
+        }
+
+        return result;
+    }
+
+    /**
+     * Counts the total number of flat translation entries across all locales.
+     *
+     * @param localeFiles - Flat locale files grouped by locale
+     * @returns Total entry count
+     */
+    #countFlatLocaleEntries(localeFiles: FlatLocaleFiles): number {
+        return Object.values(localeFiles).reduce((total, entries) => total + Object.keys(entries).length, 0);
     }
 }

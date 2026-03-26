@@ -1,2 +1,2 @@
-export * from "./App";
-export * from "./ConfigLoader";
+export * from "./App.js";
+export * from "./ConfigLoader.js";
