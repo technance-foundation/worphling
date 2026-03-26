@@ -10,13 +10,6 @@ import type { Config, LocaleFile } from "../../src/types.js";
 const execFileAsync = promisify(execFile);
 
 /**
- * Platform-aware pnpm executable name.
- *
- * Windows requires the `.cmd` shim for child-process execution.
- */
-const PNPM_EXECUTABLE = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-
-/**
  * Input for creating a CLI integration-test workspace.
  */
 interface CreateCliIntegrationWorkspaceInput {
@@ -318,18 +311,47 @@ async function buildCliAndResolveEntryPath(): Promise<string> {
     const packageDirectoryPath = path.resolve(currentDirectoryPath, "..", "..");
     const builtCliPath = path.join(packageDirectoryPath, "dist", "index.mjs");
 
-    await execFileAsync(PNPM_EXECUTABLE, ["build"], {
-        cwd: packageDirectoryPath,
-        env: {
-            ...process.env,
-        },
-    });
+    await runPnpmCommand(["build"], packageDirectoryPath);
 
     if (!fs.existsSync(builtCliPath)) {
         throw new Error(`Built CLI entrypoint was not found at "${builtCliPath}".`);
     }
 
     return builtCliPath;
+}
+
+/**
+ * Runs pnpm in a cross-platform way.
+ *
+ * On Windows, pnpm is exposed as a `.cmd` shim and must be executed through
+ * `cmd.exe`. On Unix-like systems it can be executed directly.
+ *
+ * @param args - pnpm arguments
+ * @param cwd - Working directory
+ * @returns Completed process result
+ */
+async function runPnpmCommand(
+    args: Array<string>,
+    cwd: string,
+): Promise<{
+    stdout: string;
+    stderr: string;
+}> {
+    if (process.platform === "win32") {
+        return execFileAsync("cmd.exe", ["/d", "/s", "/c", "pnpm", ...args], {
+            cwd,
+            env: {
+                ...process.env,
+            },
+        });
+    }
+
+    return execFileAsync("pnpm", args, {
+        cwd,
+        env: {
+            ...process.env,
+        },
+    });
 }
 
 /**
