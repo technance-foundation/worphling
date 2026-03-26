@@ -33,5 +33,11 @@ jobs:
                   install: "pnpm install --frozen-lockfile"
                   build: "false"
 
-            - name: Run check
+            - name: Run format check
+              run: pnpm run format
+
+            - name: Run lint
+              run: pnpm run lint
+
+            - name: Run package check
               run: pnpm run check

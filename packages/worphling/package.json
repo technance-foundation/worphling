@@ -46,7 +46,7 @@
         "release": "pnpm build && npm publish",
         "start": "node dist/index.mjs",
         "test": "vitest run",
-        "type-check": "tsc --noEmit",
+        "typecheck": "tsc --noEmit",
         "prepublishOnly": "pnpm build"
     },
     "type": "module",
