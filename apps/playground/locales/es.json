@@ -1,37 +1,6 @@
 {
     "app": {
-        "auth": {
-            "login": {
-                "errors": {
-                    "accountLocked": "Cuenta bloqueada. Contacta con soporte.",
-                    "invalidCredentials": "Credenciales inválidas"
-                },
-                "placeholders": {
-                    "password": "Contraseña",
-                    "username": "Nombre de usuario"
-                },
-                "title": "Iniciar sesión"
-            },
-            "signup": {
-                "agreements": {
-                    "terms": "Acepto los términos y condiciones"
-                },
-                "buttons": {
-                    "submit": "Registrarse"
-                },
-                "placeholders": {
-                    "email": "Correo electrónico",
-                    "password": "Contraseña",
-                    "username": "Nombre de usuario"
-                },
-                "title": "Registrarse"
-            },
-            "trade": {
-                "description": "{totalPayment} USDT a {orderMode, select, limit {{price}} market {al precio actual} other {}} precio de mercado",
-                "status": "{status, select, error {Rechazado} success {Verificado} loading {Verificando} other {}} operación abierta",
-                "title": "Orden {status, select, error {fallida} success {realizada} loading {realizando} other {}}"
-            }
-        },
+        "auth": {},
         "errors": {
             "404": {
                 "message": "La página que buscas no existe.",

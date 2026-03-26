@@ -13,7 +13,7 @@ import type {
  * These commands are intentionally modeled up front so the runtime,
  * configuration, and reporting layers can share a stable vocabulary.
  */
-export type CommandName = "check" | "translate" | "fix" | "sync" | "report";
+export type CommandName = "help" | "check" | "translate" | "fix" | "sync" | "report";
 
 /**
  * Supported translation provider names.
@@ -392,6 +392,11 @@ export interface CliFlags {
      * Whether the process should fail when changes are detected.
      */
     failOnChanges: boolean;
+
+    /**
+     * Whether warnings should cause the process to fail.
+     */
+    failOnWarnings: boolean;
 }
 
 /**
@@ -407,6 +412,13 @@ export interface AppConfig {
      * Parsed CLI flags for the current invocation.
      */
     flags: CliFlags;
+
+    /**
+     * Optional runtime logger.
+     *
+     * When omitted, the app will create its default console logger.
+     */
+    logger?: Logger;
 }
 
 /**
@@ -570,6 +582,58 @@ export interface TranslationBatchResult {
 }
 
 /**
+ * Prompt context supplied by a translation plugin.
+ */
+export interface TranslationPluginPromptContext {
+    /**
+     * Additional plugin-specific system prompt instructions.
+     */
+    additionalInstructions: Array<string>;
+
+    /**
+     * Example input appropriate for the plugin.
+     */
+    exampleInput: string;
+
+    /**
+     * Example output appropriate for the plugin.
+     */
+    exampleOutput: string;
+}
+
+/**
+ * Contract for translation plugins.
+ *
+ * ICU remains the core message model of Worphling. Plugins only add
+ * framework-specific prompting and validation adjustments on top of that core
+ * behavior.
+ */
+export interface TranslationPluginContract {
+    /**
+     * Stable plugin identifier.
+     */
+    readonly name: PluginName;
+
+    /**
+     * Returns prompt context used by translation providers.
+     *
+     * @returns Plugin prompt context
+     */
+    getPromptContext(): TranslationPluginPromptContext;
+
+    /**
+     * Returns framework-specific validation overrides.
+     *
+     * These overrides are merged on top of the user-provided validation config.
+     * ICU and placeholder preservation are considered core behavior and should
+     * not be modeled as plugin-specific concerns.
+     *
+     * @returns Partial validation config overrides
+     */
+    getValidationOverrides(): Partial<ValidationConfig>;
+}
+
+/**
  * Contract for translation providers.
  *
  * Providers are intentionally decoupled from filesystem, diffing, and writing
@@ -654,6 +718,11 @@ export interface RunSummary {
      * Whether the run changed files or would change files in dry-run mode.
      */
     hasChanges: boolean;
+
+    /**
+     * Whether translation execution failed due to a provider error.
+     */
+    hasProviderFailure?: boolean;
 }
 
 /**
@@ -705,4 +774,47 @@ export enum ExitCode {
      * Translation provider failed.
      */
     ProviderError = 5,
+}
+
+/**
+ * Contract for runtime logging.
+ *
+ * This keeps user-facing output consistent across the CLI, app orchestration,
+ * repositories, and execution collaborators.
+ */
+export interface Logger {
+    /**
+     * Logs a message.
+     *
+     * @param message - Message to write
+     */
+    log(message: string): void;
+
+    /**
+     * Logs a neutral informational message.
+     *
+     * @param message - Message to write
+     */
+    info(message: string): void;
+
+    /**
+     * Logs a success message.
+     *
+     * @param message - Message to write
+     */
+    success(message: string): void;
+
+    /**
+     * Logs a warning message.
+     *
+     * @param message - Message to write
+     */
+    warn(message: string): void;
+
+    /**
+     * Logs an error message.
+     *
+     * @param message - Message to write
+     */
+    error(message: string): void;
 }

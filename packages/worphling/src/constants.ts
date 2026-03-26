@@ -1,11 +1,4 @@
-/**
- * ANSI console color format strings used by the CLI output layer.
- */
-export const ANSI_COLORS = {
-    green: "\x1b[32m%s\x1b[0m",
-    red: "\x1b[31m%s\x1b[0m",
-    yellow: "\x1b[33m%s\x1b[0m",
-} as const;
+import type OpenAI from "openai";
 
 /**
  * Supported config file extensions, checked in declaration order.
@@ -47,7 +40,7 @@ export type SupportedReportFormat = (typeof SUPPORTED_REPORT_FORMATS)[number];
 /**
  * Default OpenAI model used when none is configured explicitly.
  */
-export const DEFAULT_OPENAI_MODEL = "gpt-5.1-2025-11-13";
+export const DEFAULT_OPENAI_MODEL: OpenAI.ChatModel = "gpt-5.1-2025-11-13";
 
 /**
  * Default JSON indentation used when writing locale files.

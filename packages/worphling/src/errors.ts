@@ -1,3 +1,5 @@
+/** biome-ignore-all lint/complexity/noUselessConstructor: Intentionally ignoring to make message JSDoc improvements */
+
 /**
  * Base class for all Worphling runtime errors.
  *
@@ -74,6 +76,33 @@ export class ConfigValidationError extends WorphlingError {
      */
     constructor(message: string) {
         super(message);
+    }
+}
+
+/**
+ * Thrown when a configured translation context file cannot be read.
+ */
+export class TranslationContextReadError extends WorphlingError {
+    /**
+     * Absolute context file path that failed to be read.
+     */
+    readonly filePath: string;
+
+    /**
+     * Original failure reason.
+     */
+    readonly reason: string;
+
+    /**
+     * Creates a new translation-context-read error.
+     *
+     * @param filePath - Context file path
+     * @param reason - Underlying failure reason
+     */
+    constructor(filePath: string, reason: string) {
+        super(`Failed to read translation context file at ${filePath}: ${reason}`);
+        this.filePath = filePath;
+        this.reason = reason;
     }
 }
 
@@ -209,5 +238,46 @@ export class UnsupportedProviderError extends WorphlingError {
     constructor(providerName: string) {
         super(`Unsupported translation provider "${providerName}".`);
         this.providerName = providerName;
+    }
+}
+
+/**
+ * Thrown when a translation provider request fails during execution.
+ */
+export class TranslationProviderExecutionError extends WorphlingError {
+    /**
+     * Provider name associated with the failure.
+     */
+    readonly providerName: string;
+
+    /**
+     * Original failure reason.
+     */
+    readonly reason: string;
+
+    /**
+     * Optional locale associated with the failed request.
+     */
+    readonly locale?: string;
+
+    /**
+     * Optional batch index associated with the failed request.
+     */
+    readonly batchIndex?: number;
+
+    /**
+     * Creates a new translation-provider-execution error.
+     *
+     * @param providerName - Translation provider name
+     * @param reason - Underlying failure reason
+     * @param locale - Optional locale associated with the failed request
+     * @param batchIndex - Optional batch index associated with the failed request
+     */
+    constructor(providerName: string, reason: string, locale?: string, batchIndex?: number) {
+        super(`Translation provider "${providerName}" failed: ${reason}`);
+        this.providerName = providerName;
+        this.reason = reason;
+        this.locale = locale;
+        this.batchIndex = batchIndex;
     }
 }

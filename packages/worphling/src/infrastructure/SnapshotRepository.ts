@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -59,12 +60,16 @@ export class SnapshotRepository {
     /**
      * Saves a source-locale snapshot for later change detection.
      *
+     * For `hash` strategy, values are stored as deterministic content hashes.
+     * For `snapshot` strategy, raw flattened source values are stored.
+     *
      * @param snapshotFilePath - Snapshot file path
      * @param sourceLocale - Source locale associated with the snapshot
      * @param content - Source locale content
+     * @param strategy - Detection strategy for snapshot persistence
      * @throws {SnapshotStorageError} When the snapshot cannot be written
      */
-    save(snapshotFilePath: string, sourceLocale: string, content: LocaleFile): void {
+    save(snapshotFilePath: string, sourceLocale: string, content: LocaleFile, strategy: "hash" | "snapshot"): void {
         const resolvedSnapshotPath = path.resolve(snapshotFilePath);
 
         try {
@@ -74,9 +79,15 @@ export class SnapshotRepository {
                 fs.mkdirSync(snapshotDirectoryPath, { recursive: true });
             }
 
+            const flattenedEntries = this.#localeStructure.flatten(content);
+            const entries =
+                strategy === "hash"
+                    ? Object.fromEntries(Object.entries(flattenedEntries).map(([key, value]) => [key, this.#hash(value)]))
+                    : flattenedEntries;
+
             const snapshot: SnapshotFile = {
                 sourceLocale,
-                entries: this.#localeStructure.flatten(content),
+                entries,
             };
 
             fs.writeFileSync(resolvedSnapshotPath, `${JSON.stringify(snapshot, null, 4)}\n`, "utf-8");
@@ -84,5 +95,15 @@ export class SnapshotRepository {
             const reason = error instanceof Error ? error.message : String(error);
             throw new SnapshotStorageError(resolvedSnapshotPath, reason);
         }
+    }
+
+    /**
+     * Returns a deterministic hash for a source translation value.
+     *
+     * @param value - Source translation value
+     * @returns SHA-256 hex digest
+     */
+    #hash(value: string): string {
+        return crypto.createHash("sha256").update(value).digest("hex");
     }
 }

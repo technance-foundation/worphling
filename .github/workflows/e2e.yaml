@@ -1,0 +1,50 @@
+name: E2E
+
+on:
+    pull_request:
+        types: [opened, synchronize, reopened]
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    e2e:
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+
+        env:
+            OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@v4
+
+            - name: Setup repository
+              uses: technance-foundation/github-actions/setup@main
+              with:
+                  node-version: "24.14.0"
+                  pnpm-version: "10.33.0"
+                  npm-token: ${{ secrets.NPM_TOKEN }}
+                  install: "pnpm install --frozen-lockfile"
+                  build: "pnpm --filter @technance/worphling build"
+
+            - name: Probe OpenAI connectivity
+              run: |
+                  curl -sS -o /dev/null -w "DNS: %{time_namelookup}s\nConnect: %{time_connect}s\nTTFB: %{time_starttransfer}s\nTotal: %{time_total}s\n" \
+                    https://api.openai.com/v1/models \
+                    -H "Authorization: Bearer $OPENAI_API_KEY"
+
+            - name: Run playground E2E
+              working-directory: apps/playground
+              run: pnpm e2e:ci
+
+            - name: Upload playground artifacts
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: playground-e2e-artifacts
+                  path: |
+                      apps/playground/artifacts
+                      apps/playground/locales/es.json
+                  if-no-files-found: warn

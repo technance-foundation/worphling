@@ -1,15 +1,16 @@
+import fs from "node:fs";
+import path from "node:path";
 import { OpenAI } from "openai";
 
 import { DEFAULT_OPENAI_MODEL, DEFAULT_PROVIDER_TEMPERATURE } from "../constants.js";
-import { EXAMPLE_INPUT, EXAMPLE_NEXT_INTL_INPUT, EXAMPLE_NEXT_INTL_OUTPUT, EXAMPLE_OUTPUT } from "../core/examples.js";
 import { ProviderResponseValidationError } from "../errors.js";
 import type {
     FlatLocaleFile,
-    FlatLocaleFiles,
-    PluginName,
+    Logger,
     ResolvedConfig,
     TranslationBatch,
     TranslationBatchResult,
+    TranslationPluginContract,
     TranslationProviderContract,
 } from "../types.js";
 
@@ -18,12 +19,18 @@ import type {
  *
  * This class is responsible only for:
  * - sending translation requests to the configured provider
- * - selecting the appropriate prompt examples for the active plugin
+ * - using plugin-supplied prompt context
  * - validating and parsing the provider response
  *
- * It does not perform filesystem operations or diff calculation.
+ * It does not perform filesystem operations, diff calculation, batching,
+ * retries, or concurrency orchestration.
  */
 export class OpenAiTranslationProvider implements TranslationProviderContract {
+    /**
+     * Runtime logger used for provider-level diagnostics.
+     */
+    #logger: Logger;
+
     /**
      * OpenAI client instance used for translation requests.
      */
@@ -35,6 +42,16 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
     #config: ResolvedConfig;
 
     /**
+     * Active translation plugin.
+     */
+    #plugin: TranslationPluginContract;
+
+    /**
+     * Optional preloaded translation context instructions.
+     */
+    #contextInstructions?: string;
+
+    /**
      * Stable provider identifier.
      */
     readonly name = "openai" as const;
@@ -43,9 +60,15 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
      * Creates a new translator instance.
      *
      * @param config - Fully resolved runtime configuration
+     * @param plugin - Active translation plugin
+     * @param logger - Runtime logger
+     * @param contextInstructions - Optional preloaded translation context instructions
      */
-    constructor(config: ResolvedConfig) {
+    constructor(config: ResolvedConfig, plugin: TranslationPluginContract, logger: Logger, contextInstructions?: string) {
         this.#config = config;
+        this.#plugin = plugin;
+        this.#logger = logger;
+        this.#contextInstructions = contextInstructions;
         this.#client = new OpenAI({
             apiKey: config.provider.apiKey,
         });
@@ -56,12 +79,21 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
      *
      * This method satisfies the `TranslationProviderContract`.
      *
+     * Provider-level diagnostics are logged here so real-world failures can be
+     * correlated with locale, model, entry count, and approximate payload size.
+     *
      * @param batch - Translation batch
      * @param config - Optional resolved runtime config override
      * @returns Translated batch result
      */
     async translate(batch: TranslationBatch, config?: ResolvedConfig): Promise<TranslationBatchResult> {
         const runtimeConfig = config || this.#config;
+        const approximateCharacterCount = this.#getBatchCharacterCount(batch);
+
+        this.#logger.info(
+            `Preparing OpenAI translation request for locale "${batch.locale}" with ${batch.entries.length} entr${batch.entries.length === 1 ? "y" : "ies"} using model "${runtimeConfig.provider.model || DEFAULT_OPENAI_MODEL}". ApproxChars=${approximateCharacterCount}.`,
+        );
+
         const responseText = await this.#fetchBatchTranslations(batch, runtimeConfig);
         const entries = this.#parseBatchTranslations(responseText, batch);
 
@@ -72,79 +104,14 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
     }
 
     /**
-     * Translates multiple locales in the current app-oriented shape.
-     *
-     * @param keysToTranslate - Flat translation entries grouped by locale
-     * @returns Translated flat locale entries grouped by locale
-     */
-    async translateAll(keysToTranslate: FlatLocaleFiles): Promise<FlatLocaleFiles> {
-        const result: FlatLocaleFiles = {};
-
-        for (const [locale, entries] of Object.entries(keysToTranslate)) {
-            const batch: TranslationBatch = {
-                locale,
-                entries: Object.entries(entries).map(([key, source]) => ({
-                    key,
-                    source,
-                })),
-            };
-
-            const translatedBatch = await this.translate(batch, this.#config);
-            result[locale] = translatedBatch.entries;
-        }
-
-        return result;
-    }
-
-    /**
-     * Sends a single translation batch to OpenAI and returns the raw JSON
-     * response text.
-     *
-     * @param batch - Translation batch
-     * @param config - Resolved runtime configuration
-     * @returns Raw JSON response text
-     */
-    async #fetchBatchTranslations(batch: TranslationBatch, config: ResolvedConfig): Promise<string> {
-        const pluginName = config.plugin.name;
-        const exactLength = config.translation.exactLength;
-        const model = config.provider.model || DEFAULT_OPENAI_MODEL;
-        const temperature = config.provider.temperature ?? DEFAULT_PROVIDER_TEMPERATURE;
-        const contextInstructions = this.#readContextInstructions();
-        const payload = this.#buildBatchPayload(batch);
-
-        const response = await this.#client.chat.completions.create({
-            model,
-            response_format: {
-                type: "json_object",
-            },
-            messages: [
-                {
-                    role: "system",
-                    content: this.#buildSystemPrompt(pluginName, exactLength, contextInstructions),
-                },
-                {
-                    role: "user",
-                    content: JSON.stringify(payload, null, 2),
-                },
-            ],
-            temperature,
-        });
-
-        const content = response.choices[0]?.message?.content;
-
-        return content || "{}";
-    }
-
-    /**
      * Builds the provider payload for a single translation batch.
      *
-     * The payload shape matches the examples and keeps the target locale at the
-     * top level.
+     * The payload shape keeps the target locale at the top level.
      *
      * @param batch - Translation batch
      * @returns Provider payload
      */
-    #buildBatchPayload(batch: TranslationBatch): FlatLocaleFiles {
+    #buildBatchPayload(batch: TranslationBatch): Record<string, FlatLocaleFile> {
         const localeEntries: FlatLocaleFile = {};
 
         for (const entry of batch.entries) {
@@ -190,41 +157,39 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
     /**
      * Builds the system prompt used for translation generation.
      *
-     * @param pluginName - Active plugin name
+     * Worphling treats ICU as the default message model. Plugins only add
+     * framework-specific instructions on top of that baseline.
+     *
      * @param exactLength - Whether exact-length guidance is enabled
      * @param contextInstructions - Optional extra translation instructions
      * @returns System prompt
      */
-    #buildSystemPrompt(pluginName: PluginName, exactLength: boolean, contextInstructions?: string): string {
-        const isNextIntlPluginEnabled = pluginName === "next-intl";
-        const exampleInput = isNextIntlPluginEnabled ? EXAMPLE_NEXT_INTL_INPUT : EXAMPLE_INPUT;
-        const exampleOutput = isNextIntlPluginEnabled ? EXAMPLE_NEXT_INTL_OUTPUT : EXAMPLE_OUTPUT;
+    #buildSystemPrompt(exactLength: boolean, contextInstructions?: string): string {
+        const promptContext = this.#plugin.getPromptContext();
 
         return [
             "You are a translation assistant.",
+            "The project uses ICU message syntax as the default translation format.",
             "Translate the provided keys and texts into their specified target languages.",
             "Always respond with valid JSON matching the input structure exactly.",
             "Do not wrap the response in a ```json code block.",
-            "Preserve placeholders, ICU syntax, and tags whenever present.",
-            exactLength ? "Translated responses must not exceed the length of their input." : undefined,
+            "Do not add, remove, rename, reorder, or restructure keys.",
+            "Preserve ICU message structure exactly when present.",
+            "Preserve ICU argument names exactly.",
+            "Preserve plural, select, and selectordinal branch keys exactly, including required branches such as `other` and exact-match selectors such as `=0`.",
+            "Preserve placeholders exactly when present.",
+            "Preserve HTML-like or rich-text tags exactly when present.",
+            "Preserve escaping semantics exactly, including single-quote escaping used for literal ICU characters such as `{` and `}`.",
+            ...promptContext.additionalInstructions,
+            exactLength
+                ? "Translated responses should not exceed the length of their input when reasonably possible."
+                : undefined,
             contextInstructions ? `Additional translation instructions:\n${contextInstructions}` : undefined,
-            `Example input: ${exampleInput}`,
-            `Example output: ${exampleOutput}`,
+            `Example input: ${promptContext.exampleInput}`,
+            `Example output: ${promptContext.exampleOutput}`,
         ]
             .filter(Boolean)
             .join("\n\n");
-    }
-
-    /**
-     * Reads optional translation context instructions.
-     *
-     * The current implementation intentionally returns `undefined` until the
-     * context-file loading layer is introduced.
-     *
-     * @returns Optional context instructions
-     */
-    #readContextInstructions(): string | undefined {
-        return undefined;
     }
 
     /**
@@ -239,5 +204,98 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
         }
 
         return Object.values(value).every((entryValue) => typeof entryValue === "string");
+    }
+
+    /**
+     * Sends a single translation batch to OpenAI and returns the raw JSON
+     * response text.
+     *
+     * This method also persists the exact outbound request body to a debug file
+     * so the request can be replayed with curl during timeout investigations.
+     *
+     * @param batch - Translation batch
+     * @param config - Resolved runtime configuration
+     * @returns Raw JSON response text
+     */
+    async #fetchBatchTranslations(batch: TranslationBatch, config: ResolvedConfig): Promise<string> {
+        const exactLength = config.translation.exactLength;
+        const model = config.provider.model || DEFAULT_OPENAI_MODEL;
+        const temperature = config.provider.temperature ?? DEFAULT_PROVIDER_TEMPERATURE;
+        const payload = this.#buildBatchPayload(batch);
+        const systemPrompt = this.#buildSystemPrompt(exactLength, this.#contextInstructions);
+        const userPayload = JSON.stringify(payload, null, 2);
+
+        this.#logger.info(
+            `Sending OpenAI request for locale "${batch.locale}". systemPromptChars=${systemPrompt.length}, userPayloadChars=${userPayload.length}.`,
+        );
+
+        const requestBody = {
+            model,
+            response_format: {
+                type: "json_object" as const,
+            },
+            messages: [
+                {
+                    role: "system" as const,
+                    content: systemPrompt,
+                },
+                {
+                    role: "user" as const,
+                    content: userPayload,
+                },
+            ],
+            temperature,
+        };
+
+        const debugRequestFilePath = this.#writeDebugRequestFile(batch.locale, requestBody);
+
+        this.#logger.info(`Wrote OpenAI debug request for locale "${batch.locale}" to ${debugRequestFilePath}.`);
+
+        const startedAt = Date.now();
+
+        const response = await this.#client.chat.completions.create(requestBody);
+
+        const durationMs = Date.now() - startedAt;
+
+        this.#logger.success(`OpenAI request for locale "${batch.locale}" completed in ${durationMs}ms.`);
+
+        const content = response.choices[0]?.message?.content;
+
+        return content || "{}";
+    }
+
+    /**
+     * Writes the exact outbound OpenAI request body to a local debug file.
+     *
+     * This makes it easy to replay the request with curl and distinguish
+     * SDK/runtime issues from payload-specific issues.
+     *
+     * @param locale - Batch locale
+     * @param requestBody - Exact OpenAI request body
+     * @returns Absolute debug file path
+     */
+    #writeDebugRequestFile(locale: string, requestBody: object): string {
+        const artifactsDirectoryPath = path.resolve("artifacts");
+        const filePath = path.join(artifactsDirectoryPath, `openai-request-${locale}.json`);
+
+        if (!fs.existsSync(artifactsDirectoryPath)) {
+            fs.mkdirSync(artifactsDirectoryPath, { recursive: true });
+        }
+
+        fs.writeFileSync(filePath, `${JSON.stringify(requestBody, null, 2)}\n`, "utf-8");
+
+        return filePath;
+    }
+
+    /**
+     * Returns an approximate character count for a provider batch.
+     *
+     * This is used only for diagnostics and not for batching decisions.
+     *
+     * @param batch - Translation batch
+     * @returns Approximate character count
+     */
+    #getBatchCharacterCount(batch: TranslationBatch): number {
+        return batch.entries.reduce((total, entry) => total + entry.key.length + entry.source.length, 0);
     }
 }

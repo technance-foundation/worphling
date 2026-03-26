@@ -16,8 +16,9 @@
         "strict": true,
         "outDir": "./dist",
         "declaration": true,
-        "sourceMap": true
+        "sourceMap": true,
+        "types": ["node", "vitest/globals"]
     },
-    "include": ["./src/**/*"],
+    "include": ["./src/**/*", "tests/**/*", "./vitest.config.ts"],
     "exclude": ["node_modules", "dist"]
 }

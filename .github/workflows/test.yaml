@@ -1,0 +1,33 @@
+name: Test
+
+on: push
+
+jobs:
+    test:
+        runs-on: ${{ matrix.os }}
+
+        strategy:
+            matrix:
+                os: [ubuntu-latest, windows-latest, macos-latest]
+                node: ["24.14.0"]
+
+        name: Test on ${{ matrix.os }} with Node ${{ matrix.node }}
+
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@v4
+
+            - name: Setup repository
+              uses: technance-foundation/github-actions/setup@v1
+              with:
+                  node-version: ${{ matrix.node }}
+                  pnpm-version: "10.33.0"
+                  npm-token: ${{ secrets.NPM_TOKEN }}
+                  install: "pnpm install --frozen-lockfile"
+                  build: "false"
+
+            - name: Build
+              run: pnpm run build
+
+            - name: Test
+              run: pnpm run test

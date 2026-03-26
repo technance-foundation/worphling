@@ -1,10 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { ANSI_COLORS } from "../constants.js";
 import { LocaleFileReadError, LocaleFileWriteError } from "../errors.js";
-import type { LocaleFile, LocaleFiles, OutputConfig } from "../types.js";
-
+import type { LocaleFile, LocaleFiles, Logger, OutputConfig } from "../types.js";
 /**
  * Repository responsible for reading and writing locale JSON files on disk.
  *
@@ -13,6 +11,11 @@ import type { LocaleFile, LocaleFiles, OutputConfig } from "../types.js";
  * - writing locale files using the configured output formatting
  */
 export class JsonLocaleRepository {
+    /**
+     * Runtime logger used for write notifications.
+     */
+    #logger: Logger;
+
     /**
      * Absolute path to the locales directory.
      */
@@ -24,14 +27,23 @@ export class JsonLocaleRepository {
     #output: OutputConfig;
 
     /**
+     * Configured locale file pattern.
+     */
+    #filePattern: string;
+
+    /**
      * Creates a new locale JSON repository.
      *
-     * @param localesDirectoryPath - Directory containing locale JSON files
+     * @param localesDirectoryPath - Directory containing locale files
+     * @param filePattern - Configured locale file pattern
      * @param output - Output formatting configuration
+     * @param logger - Runtime logger
      */
-    constructor(localesDirectoryPath: string, output: OutputConfig) {
+    constructor(localesDirectoryPath: string, filePattern: string, output: OutputConfig, logger: Logger) {
         this.#localesDirectoryPath = path.resolve(localesDirectoryPath);
+        this.#filePattern = filePattern;
         this.#output = output;
+        this.#logger = logger;
     }
 
     /**
@@ -67,13 +79,19 @@ export class JsonLocaleRepository {
     }
 
     /**
-     * Returns the JSON file names available in the configured locales
-     * directory.
+     * Returns the locale file names available in the configured locales
+     * directory that match the configured file pattern.
      *
-     * @returns JSON file names
+     * Supported patterns are suffix-style patterns such as:
+     * - `*.json`
+     * - `*.jsonc`
+     *
+     * @returns Matching locale file names
      */
     #scan(): Array<string> {
-        return fs.readdirSync(this.#localesDirectoryPath).filter((file) => file.endsWith(".json"));
+        const extension = this.#extractFileExtensionFromPattern(this.#filePattern);
+
+        return fs.readdirSync(this.#localesDirectoryPath).filter((file) => file.endsWith(extension));
     }
 
     /**
@@ -112,7 +130,10 @@ export class JsonLocaleRepository {
      * @throws {LocaleFileWriteError} When the file cannot be written
      */
     #writeLocaleFile(locale: string, content: LocaleFile): void {
-        const filePath = path.join(this.#localesDirectoryPath, `${locale}.json`);
+        const filePath = path.join(
+            this.#localesDirectoryPath,
+            `${locale}${this.#extractFileExtensionFromPattern(this.#filePattern)}`,
+        );
 
         try {
             const contentToWrite = this.#output.sortKeys ? this.#sortObjectKeysRecursively(content) : content;
@@ -121,7 +142,7 @@ export class JsonLocaleRepository {
 
             fs.writeFileSync(filePath, finalContent, "utf-8");
 
-            console.log(ANSI_COLORS.green, `Success: File written for locale "${locale}" at ${filePath}`);
+            this.#logger.success(`Success: File written for locale "${locale}" at ${filePath}`);
         } catch (error) {
             const reason = error instanceof Error ? error.message : String(error);
             throw new LocaleFileWriteError(filePath, reason);
@@ -129,13 +150,14 @@ export class JsonLocaleRepository {
     }
 
     /**
-     * Extracts the locale key from a locale file path.
+     * Extracts the locale key from a locale file path using the configured file
+     * pattern extension.
      *
      * @param filePath - Locale file path
      * @returns Locale key
      */
     #extractLanguageKey(filePath: string): string {
-        return path.basename(filePath, ".json");
+        return path.basename(filePath, this.#extractFileExtensionFromPattern(this.#filePattern));
     }
 
     /**
@@ -161,6 +183,26 @@ export class JsonLocaleRepository {
         }
 
         return result;
+    }
+
+    /**
+     * Extracts a file extension from a simple suffix-style file pattern.
+     *
+     * Supported patterns must start with `*.` and contain a non-empty extension.
+     *
+     * @param filePattern - Configured file pattern
+     * @returns File extension including the leading dot
+     * @throws {LocaleFileReadError} When the pattern is not supported
+     */
+    #extractFileExtensionFromPattern(filePattern: string): string {
+        if (!filePattern.startsWith("*.") || filePattern.length <= 2) {
+            throw new LocaleFileReadError(
+                this.#localesDirectoryPath,
+                `Unsupported filePattern "${filePattern}". Expected a suffix-style pattern such as "*.json".`,
+            );
+        }
+
+        return filePattern.slice(1);
     }
 
     /**

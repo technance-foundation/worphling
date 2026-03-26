@@ -1,8 +1,13 @@
 #!/usr/bin/env node
 
 import { App, ConfigLoader } from "../app/index.js";
-import { ANSI_COLORS } from "../constants.js";
-import { ConfigValidationError, WorphlingError } from "../errors.js";
+import {
+    ConfigValidationError,
+    ProviderResponseValidationError,
+    TranslationProviderExecutionError,
+    WorphlingError,
+} from "../errors.js";
+import { ConsoleLogger } from "../infrastructure/ConsoleLogger.js";
 import type { ExitCode as ExitCodeType } from "../types.js";
 import { ExitCode } from "../types.js";
 
@@ -20,8 +25,16 @@ export * from "../types.js";
  * - mapping domain failures to stable process exit codes
  */
 (async () => {
+    const logger = new ConsoleLogger();
+
     try {
         const cli = new Cli();
+
+        if (cli.flags.command === "help") {
+            logger.log(Cli.renderHelp());
+            process.exit(ExitCode.Success);
+        }
+
         const configLoader = new ConfigLoader(cli.flags.configPath);
         const config = await configLoader.load();
 
@@ -36,9 +49,11 @@ export * from "../types.js";
         const statusCode = resolveExitCode(error);
 
         if (error instanceof Error) {
-            console.error(ANSI_COLORS.red, `Error: ${error.message}`);
+            logger.error(`Error: ${error.message}`);
+            logger.log("");
+            logger.log(Cli.renderHelp());
         } else {
-            console.error(ANSI_COLORS.red, "Error: Unknown error.");
+            logger.error("Error: Unknown error.");
         }
 
         process.exit(statusCode);
@@ -54,6 +69,10 @@ export * from "../types.js";
 function resolveExitCode(error: unknown): ExitCodeType {
     if (error instanceof ConfigValidationError) {
         return ExitCode.ConfigError;
+    }
+
+    if (error instanceof TranslationProviderExecutionError || error instanceof ProviderResponseValidationError) {
+        return ExitCode.ProviderError;
     }
 
     if (error instanceof WorphlingError) {
