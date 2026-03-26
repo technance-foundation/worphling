@@ -10,6 +10,13 @@ import type { Config, LocaleFile } from "../../src/types.js";
 const execFileAsync = promisify(execFile);
 
 /**
+ * Platform-aware pnpm executable name.
+ *
+ * Windows requires the `.cmd` shim for child-process execution.
+ */
+const PNPM_EXECUTABLE = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+
+/**
  * Input for creating a CLI integration-test workspace.
  */
 interface CreateCliIntegrationWorkspaceInput {
@@ -311,7 +318,7 @@ async function buildCliAndResolveEntryPath(): Promise<string> {
     const packageDirectoryPath = path.resolve(currentDirectoryPath, "..", "..");
     const builtCliPath = path.join(packageDirectoryPath, "dist", "index.mjs");
 
-    await execFileAsync("pnpm", ["build"], {
+    await execFileAsync(PNPM_EXECUTABLE, ["build"], {
         cwd: packageDirectoryPath,
         env: {
             ...process.env,
