@@ -1,3 +1,5 @@
+/** biome-ignore-all lint/complexity/noUselessConstructor: Intentionally ignoring to make message JSDoc improvements */
+
 /**
  * Base class for all Worphling runtime errors.
  *

@@ -72,19 +72,19 @@ export class Cli {
             },
         });
 
-        const command = this.#resolveCommand(args._[0], Boolean(args["help"]));
-        const locales = this.#parseLocales(args["locales"]);
+        const command = this.#resolveCommand(args._[0], Boolean(args.help));
+        const locales = this.#parseLocales(args.locales);
         const reportFormat = this.#parseReportFormat(args["report-format"]);
 
         return {
             command,
-            configPath: this.#getOptionalString(args["config"]),
+            configPath: this.#getOptionalString(args.config),
             dryRun: Boolean(args["dry-run"]),
-            write: Boolean(args["write"]),
+            write: Boolean(args.write),
             locales,
             reportFormat,
             reportFile: this.#getOptionalString(args["report-file"]),
-            ci: Boolean(args["ci"]),
+            ci: Boolean(args.ci),
             failOnChanges: Boolean(args["fail-on-changes"]),
             failOnWarnings: Boolean(args["fail-on-warnings"]),
         };
