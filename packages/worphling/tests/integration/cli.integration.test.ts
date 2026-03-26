@@ -6,7 +6,7 @@ import { ExitCode } from "../../src/types.js";
 
 import { createCliIntegrationWorkspace } from "./createCliIntegrationWorkspace.js";
 
-test("cli defaults to check when no command is provided", async () => {
+test("cli shows help when no command is provided", async () => {
     const workspace = createCliIntegrationWorkspace({
         config: {
             validation: {
@@ -30,17 +30,19 @@ test("cli defaults to check when no command is provided", async () => {
     });
 
     try {
-        const result = await workspace.runCli(["--report-file", workspace.reportFilePath]);
+        const result = await workspace.runCli([]);
 
-        assert.equal(result.exitCode, ExitCode.ValidationError);
+        assert.equal(result.exitCode, ExitCode.Success);
         assert.equal(result.stderr, "");
-        assert.match(result.stdout, /Found 1 missing translations across all languages\./);
-        assert.match(result.stdout, /Running in analysis mode\./);
-
-        const report = workspace.readJsonFile<RunReport>(workspace.reportFilePath);
-
-        assert.equal(report.summary.command, "check");
-        assert.equal(report.summary.missingCount, 1);
+        assert.match(result.stdout, /Worphling/i);
+        assert.match(result.stdout, /Commands/i);
+        assert.match(result.stdout, /check/i);
+        assert.match(result.stdout, /translate/i);
+        assert.match(result.stdout, /fix/i);
+        assert.match(result.stdout, /sync/i);
+        assert.match(result.stdout, /report/i);
+        assert.notMatch(result.stdout, /Found 1 missing translations across all languages\./);
+        assert.equal(fs.existsSync(workspace.reportFilePath), false);
     } finally {
         workspace.cleanup();
     }

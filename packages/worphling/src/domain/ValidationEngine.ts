@@ -1,6 +1,58 @@
+import { parse, TYPE } from "@formatjs/icu-messageformat-parser";
+
 import type { DiffResult, LocaleFile, LocaleFiles, LocaleIssue, TranslationPluginContract, ValidationConfig } from "../types.js";
 
 import { LocaleStructure } from "./LocaleStructure.js";
+
+/**
+ * Minimal FormatJS ICU AST node shape used by the validation engine.
+ */
+interface IcuAstNode {
+    /**
+     * FormatJS node type discriminator.
+     */
+    type: number;
+
+    /**
+     * Node-associated value such as an argument name or tag name.
+     */
+    value?: unknown;
+
+    /**
+     * Nested child nodes for tag-like structures.
+     */
+    children?: Array<unknown>;
+
+    /**
+     * ICU options for select/plural-style nodes.
+     */
+    options?: Record<string, { value?: Array<unknown> }>;
+}
+
+/**
+ * Parsed ICU token signature model used for structural comparison.
+ */
+interface IcuStructureSignature {
+    /**
+     * Stable node kind.
+     */
+    type: string;
+
+    /**
+     * Argument name associated with the ICU node when relevant.
+     */
+    value?: string;
+
+    /**
+     * Option keys for select/plural-like nodes.
+     */
+    options?: Array<string>;
+
+    /**
+     * Nested child signatures.
+     */
+    children?: Array<IcuStructureSignature>;
+}
 
 /**
  * Input required to validate the effective locale state for a run.
@@ -202,6 +254,9 @@ export class ValidationEngine {
     /**
      * Validates placeholder preservation for a single translation entry.
      *
+     * Placeholder extraction is AST-based so ICU branch literals such as
+     * `{Rejected}` are not incorrectly treated as placeholders.
+     *
      * @param locale - Target locale
      * @param key - Translation key
      * @param sourceValue - Source message
@@ -209,8 +264,15 @@ export class ValidationEngine {
      * @returns Validation issue when placeholders do not match
      */
     #validatePlaceholders(locale: string, key: string, sourceValue: string, targetValue: string): LocaleIssue | null {
-        const sourcePlaceholders = this.#extractPlaceholderTokens(sourceValue);
-        const targetPlaceholders = this.#extractPlaceholderTokens(targetValue);
+        const sourceParseResult = this.#tryParseIcuMessage(sourceValue);
+        const targetParseResult = this.#tryParseIcuMessage(targetValue);
+
+        if (!sourceParseResult.ok || !targetParseResult.ok) {
+            return null;
+        }
+
+        const sourcePlaceholders = this.#extractPlaceholderTokensFromAst(sourceParseResult.ast);
+        const targetPlaceholders = this.#extractPlaceholderTokensFromAst(targetParseResult.ast);
 
         if (this.#areStringArraysEqual(sourcePlaceholders, targetPlaceholders)) {
             return null;
@@ -230,6 +292,9 @@ export class ValidationEngine {
     /**
      * Validates ICU preservation for a single translation entry.
      *
+     * Parsing failures are reported as ICU validation errors. When both messages
+     * parse successfully, their normalized structural signatures are compared.
+     *
      * @param locale - Target locale
      * @param key - Translation key
      * @param sourceValue - Source message
@@ -237,10 +302,38 @@ export class ValidationEngine {
      * @returns Validation issue when ICU structure does not match
      */
     #validateIcuSyntax(locale: string, key: string, sourceValue: string, targetValue: string): LocaleIssue | null {
-        const sourceIcuSignatures = this.#extractIcuSignatures(sourceValue);
-        const targetIcuSignatures = this.#extractIcuSignatures(targetValue);
+        const sourceParseResult = this.#tryParseIcuMessage(sourceValue);
 
-        if (this.#areStringArraysEqual(sourceIcuSignatures, targetIcuSignatures)) {
+        if (!sourceParseResult.ok) {
+            return {
+                type: "invalid-icu",
+                severity: "error",
+                locale,
+                key,
+                message: `Source ICU message could not be parsed: ${sourceParseResult.reason}`,
+                sourceValue,
+                targetValue,
+            };
+        }
+
+        const targetParseResult = this.#tryParseIcuMessage(targetValue);
+
+        if (!targetParseResult.ok) {
+            return {
+                type: "invalid-icu",
+                severity: "error",
+                locale,
+                key,
+                message: `Target ICU message could not be parsed: ${targetParseResult.reason}`,
+                sourceValue,
+                targetValue,
+            };
+        }
+
+        const sourceSignature = this.#buildIcuStructureSignature(sourceParseResult.ast);
+        const targetSignature = this.#buildIcuStructureSignature(targetParseResult.ast);
+
+        if (JSON.stringify(sourceSignature) === JSON.stringify(targetSignature)) {
             return null;
         }
 
@@ -249,7 +342,7 @@ export class ValidationEngine {
             severity: "error",
             locale,
             key,
-            message: `ICU structure mismatch. Expected ${this.#formatTokenList(sourceIcuSignatures)}, received ${this.#formatTokenList(targetIcuSignatures)}.`,
+            message: `ICU structure mismatch. Expected ${this.#formatStructureSignature(sourceSignature)}, received ${this.#formatStructureSignature(targetSignature)}.`,
             sourceValue,
             targetValue,
         };
@@ -265,8 +358,15 @@ export class ValidationEngine {
      * @returns Validation issue when tag structure does not match
      */
     #validateHtmlTags(locale: string, key: string, sourceValue: string, targetValue: string): LocaleIssue | null {
-        const sourceTags = this.#extractHtmlTagTokens(sourceValue);
-        const targetTags = this.#extractHtmlTagTokens(targetValue);
+        const sourceParseResult = this.#tryParseIcuMessage(sourceValue);
+        const targetParseResult = this.#tryParseIcuMessage(targetValue);
+
+        if (!sourceParseResult.ok || !targetParseResult.ok) {
+            return null;
+        }
+
+        const sourceTags = this.#extractHtmlTagTokensFromAst(sourceParseResult.ast);
+        const targetTags = this.#extractHtmlTagTokensFromAst(targetParseResult.ast);
 
         if (this.#areStringArraysEqual(sourceTags, targetTags)) {
             return null;
@@ -284,269 +384,266 @@ export class ValidationEngine {
     }
 
     /**
-     * Extracts simple placeholder tokens such as `{name}`.
-     *
-     * Complex ICU blocks such as `{count, plural, ...}` are intentionally not
-     * treated as simple placeholders here.
+     * Parses an ICU message and returns either an AST or a human-readable error.
      *
      * @param value - Message text
-     * @returns Sorted placeholder token list
+     * @returns Parse result
      */
-    #extractPlaceholderTokens(value: string): Array<string> {
-        const matches = value.match(/\{[A-Za-z0-9_.-]+\}/g);
-
-        return (matches || []).slice().sort();
+    #tryParseIcuMessage(value: string): { ok: true; ast: Array<unknown> } | { ok: false; reason: string } {
+        try {
+            return {
+                ok: true,
+                ast: parse(value),
+            };
+        } catch (error) {
+            return {
+                ok: false,
+                reason: error instanceof Error ? error.message : String(error),
+            };
+        }
     }
 
     /**
-     * Extracts normalized HTML-like tag tokens while preserving token order.
+     * Extracts placeholder tokens from an ICU AST.
+     *
+     * This includes plain arguments as well as arguments used by plural/select
+     * nodes and nested argument references inside option branches.
+     *
+     * @param ast - Parsed ICU AST
+     * @returns Sorted placeholder token list
+     */
+    #extractPlaceholderTokensFromAst(ast: Array<unknown>): Array<string> {
+        const placeholders = new Set<string>();
+
+        this.#collectPlaceholderTokensFromAst(ast, placeholders);
+
+        return [...placeholders].sort();
+    }
+
+    /**
+     * Recursively collects placeholder tokens from an ICU AST.
+     *
+     * @param ast - Parsed ICU AST
+     * @param placeholders - Mutable placeholder accumulator
+     */
+    #collectPlaceholderTokensFromAst(ast: Array<unknown>, placeholders: Set<string>): void {
+        for (const node of ast) {
+            if (!this.#isAstNode(node)) {
+                continue;
+            }
+
+            if (typeof node.value === "string" && this.#nodeCarriesArgumentValue(node.type)) {
+                placeholders.add(node.value);
+            }
+
+            if (this.#hasOptions(node)) {
+                for (const option of Object.values(node.options)) {
+                    if (option && Array.isArray(option.value)) {
+                        this.#collectPlaceholderTokensFromAst(option.value, placeholders);
+                    }
+                }
+            }
+
+            if (Array.isArray(node.children)) {
+                this.#collectPlaceholderTokensFromAst(node.children, placeholders);
+            }
+        }
+    }
+
+    /**
+     * Extracts normalized HTML-like tag tokens from an ICU AST.
      *
      * Examples:
      * - `open:bold`
      * - `close:bold`
-     * - `self:br`
      *
-     * @param value - Message text
+     * @param ast - Parsed ICU AST
      * @returns Ordered tag token list
      */
-    #extractHtmlTagTokens(value: string): Array<string> {
-        const tagPattern = /<\/?([A-Za-z][A-Za-z0-9-]*)(?:\s[^<>]*?)?\/?>/g;
+    #extractHtmlTagTokensFromAst(ast: Array<unknown>): Array<string> {
         const tokens: Array<string> = [];
 
-        for (const match of value.matchAll(tagPattern)) {
-            const fullMatch = match[0];
-            const tagName = match[1];
-
-            if (fullMatch.startsWith("</")) {
-                tokens.push(`close:${tagName}`);
-                continue;
-            }
-
-            if (fullMatch.endsWith("/>")) {
-                tokens.push(`self:${tagName}`);
-                continue;
-            }
-
-            tokens.push(`open:${tagName}`);
-        }
+        this.#collectHtmlTagTokensFromAst(ast, tokens);
 
         return tokens;
     }
 
     /**
-     * Extracts normalized ICU block signatures from a message.
+     * Recursively collects HTML-like tag tokens from an ICU AST.
      *
-     * The implementation is intentionally structural rather than exhaustive. It
-     * validates that the same ICU arguments and selector families are present.
-     *
-     * @param value - Message text
-     * @returns Sorted ICU signature list
+     * @param ast - Parsed ICU AST
+     * @param tokens - Mutable tag token accumulator
      */
-    #extractIcuSignatures(value: string): Array<string> {
-        const signatures: Array<string> = [];
-
-        this.#collectIcuSignatures(value, signatures);
-
-        return signatures.slice().sort();
-    }
-
-    /**
-     * Recursively collects ICU signatures from balanced brace blocks.
-     *
-     * @param value - Message text
-     * @param signatures - Mutable signature accumulator
-     */
-    #collectIcuSignatures(value: string, signatures: Array<string>): void {
-        const blocks = this.#extractBalancedBraceContents(value);
-
-        for (const block of blocks) {
-            const signature = this.#buildIcuSignature(block);
-
-            if (signature) {
-                signatures.push(signature);
+    #collectHtmlTagTokensFromAst(ast: Array<unknown>, tokens: Array<string>): void {
+        for (const node of ast) {
+            if (!this.#isAstNode(node)) {
+                continue;
             }
 
-            this.#collectIcuSignatures(block, signatures);
-        }
-    }
+            if (node.type === TYPE.tag && typeof node.value === "string") {
+                tokens.push(`open:${node.value}`);
 
-    /**
-     * Extracts balanced brace contents from the provided text.
-     *
-     * Returned values exclude the outer braces.
-     *
-     * @param value - Message text
-     * @returns Balanced brace contents
-     */
-    #extractBalancedBraceContents(value: string): Array<string> {
-        const blocks: Array<string> = [];
-        let currentDepth = 0;
-        let blockStartIndex = -1;
-
-        for (let index = 0; index < value.length; index += 1) {
-            const currentCharacter = value[index];
-
-            if (currentCharacter === "{") {
-                if (currentDepth === 0) {
-                    blockStartIndex = index;
+                if (Array.isArray(node.children)) {
+                    this.#collectHtmlTagTokensFromAst(node.children, tokens);
                 }
 
-                currentDepth += 1;
+                tokens.push(`close:${node.value}`);
                 continue;
             }
 
-            if (currentCharacter === "}") {
-                if (currentDepth === 0) {
-                    continue;
-                }
-
-                currentDepth -= 1;
-
-                if (currentDepth === 0 && blockStartIndex >= 0) {
-                    blocks.push(value.slice(blockStartIndex + 1, index));
-                    blockStartIndex = -1;
-                }
-            }
-        }
-
-        return blocks;
-    }
-
-    /**
-     * Builds a normalized ICU signature from a single balanced block content.
-     *
-     * Non-ICU brace content returns `null`.
-     *
-     * @param blockContent - Balanced brace content without outer braces
-     * @returns Normalized ICU signature, or `null`
-     */
-    #buildIcuSignature(blockContent: string): string | null {
-        const segments = this.#splitTopLevelCommaSegments(blockContent, 3).map((segment) => segment.trim());
-
-        if (segments.length < 2) {
-            return null;
-        }
-
-        const argumentName = segments[0];
-        const formatType = segments[1];
-
-        if (!argumentName || !formatType) {
-            return null;
-        }
-
-        if (!/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(argumentName)) {
-            return null;
-        }
-
-        if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(formatType)) {
-            return null;
-        }
-
-        if ((formatType === "plural" || formatType === "select" || formatType === "selectordinal") && segments.length >= 3) {
-            const selectors = this.#extractIcuSelectors(segments[2]);
-
-            return `${argumentName}:${formatType}:${selectors.join("|")}`;
-        }
-
-        return `${argumentName}:${formatType}`;
-    }
-
-    /**
-     * Splits a string by top-level commas while respecting brace nesting.
-     *
-     * @param value - Text to split
-     * @param maxSegments - Optional maximum number of output segments
-     * @returns Split segments
-     */
-    #splitTopLevelCommaSegments(value: string, maxSegments?: number): Array<string> {
-        const segments: Array<string> = [];
-        let currentSegmentStartIndex = 0;
-        let currentDepth = 0;
-
-        for (let index = 0; index < value.length; index += 1) {
-            const currentCharacter = value[index];
-
-            if (currentCharacter === "{") {
-                currentDepth += 1;
-                continue;
-            }
-
-            if (currentCharacter === "}") {
-                currentDepth = Math.max(0, currentDepth - 1);
-                continue;
-            }
-
-            if (currentCharacter !== "," || currentDepth !== 0) {
-                continue;
-            }
-
-            if (maxSegments !== undefined && segments.length >= maxSegments - 1) {
-                break;
-            }
-
-            segments.push(value.slice(currentSegmentStartIndex, index));
-            currentSegmentStartIndex = index + 1;
-        }
-
-        segments.push(value.slice(currentSegmentStartIndex));
-
-        return segments;
-    }
-
-    /**
-     * Extracts ICU selector names from the branch-definition part of a plural,
-     * select, or selectordinal block.
-     *
-     * @param value - Selector definition text
-     * @returns Ordered selector list
-     */
-    #extractIcuSelectors(value: string): Array<string> {
-        const selectors: Array<string> = [];
-        let index = 0;
-
-        while (index < value.length) {
-            while (index < value.length && /\s/.test(value[index])) {
-                index += 1;
-            }
-
-            const selectorStartIndex = index;
-
-            while (index < value.length && !/\s|\{/.test(value[index])) {
-                index += 1;
-            }
-
-            const selector = value.slice(selectorStartIndex, index).trim();
-
-            while (index < value.length && /\s/.test(value[index])) {
-                index += 1;
-            }
-
-            if (!selector || value[index] !== "{") {
-                index += 1;
-                continue;
-            }
-
-            selectors.push(selector);
-
-            let currentDepth = 0;
-
-            while (index < value.length) {
-                if (value[index] === "{") {
-                    currentDepth += 1;
-                } else if (value[index] === "}") {
-                    currentDepth -= 1;
-
-                    if (currentDepth === 0) {
-                        index += 1;
-                        break;
+            if (this.#hasOptions(node)) {
+                for (const option of Object.values(node.options)) {
+                    if (option && Array.isArray(option.value)) {
+                        this.#collectHtmlTagTokensFromAst(option.value, tokens);
                     }
                 }
+            }
 
-                index += 1;
+            if (Array.isArray(node.children)) {
+                this.#collectHtmlTagTokensFromAst(node.children, tokens);
             }
         }
+    }
 
-        return selectors;
+    /**
+     * Builds a normalized structural signature for a parsed ICU AST.
+     *
+     * The signature is intentionally limited to structure that should remain
+     * stable across translations:
+     * - node kind
+     * - argument name
+     * - plural/select option keys
+     * - nested child structure
+     *
+     * @param ast - Parsed ICU AST
+     * @returns Structural signature
+     */
+    #buildIcuStructureSignature(ast: Array<unknown>): Array<IcuStructureSignature> {
+        return ast
+            .map((node) => this.#buildIcuNodeSignature(node))
+            .filter((signature): signature is IcuStructureSignature => signature !== null);
+    }
+
+    /**
+     * Builds a structural signature for a single ICU AST node.
+     *
+     * @param node - Parsed ICU AST node
+     * @returns Node signature, or `null` for nodes irrelevant to validation
+     */
+    #buildIcuNodeSignature(node: unknown): IcuStructureSignature | null {
+        if (!this.#isAstNode(node)) {
+            return null;
+        }
+
+        if (node.type === TYPE.literal) {
+            return null;
+        }
+
+        if (node.type === TYPE.pound) {
+            return {
+                type: "pound",
+            };
+        }
+
+        if (node.type === TYPE.tag) {
+            return {
+                type: "tag",
+                value: typeof node.value === "string" ? node.value : undefined,
+                children: Array.isArray(node.children) ? this.#buildIcuStructureSignature(node.children) : [],
+            };
+        }
+
+        if (this.#hasOptions(node)) {
+            const optionKeys = Object.keys(node.options).sort();
+            const optionChildren = optionKeys.flatMap((optionKey) => {
+                const option = node.options[optionKey];
+
+                return option && Array.isArray(option.value) ? this.#buildIcuStructureSignature(option.value) : [];
+            });
+
+            return {
+                type: this.#normalizeAstNodeType(node.type),
+                value: typeof node.value === "string" ? node.value : undefined,
+                options: optionKeys,
+                children: optionChildren,
+            };
+        }
+
+        return {
+            type: this.#normalizeAstNodeType(node.type),
+            value: typeof node.value === "string" ? node.value : undefined,
+            children: Array.isArray(node.children) ? this.#buildIcuStructureSignature(node.children) : undefined,
+        };
+    }
+
+    /**
+     * Returns whether the provided AST node type represents an argument-bearing
+     * placeholder reference.
+     *
+     * @param nodeType - FormatJS AST node type
+     * @returns Whether the node carries an argument name
+     */
+    #nodeCarriesArgumentValue(nodeType: number): boolean {
+        return (
+            nodeType === TYPE.argument ||
+            nodeType === TYPE.number ||
+            nodeType === TYPE.date ||
+            nodeType === TYPE.time ||
+            nodeType === TYPE.select ||
+            nodeType === TYPE.plural
+        );
+    }
+
+    /**
+     * Normalizes a FormatJS AST node type into a stable string used in issue
+     * messages and signature comparison.
+     *
+     * @param nodeType - FormatJS AST node type
+     * @returns Stable node type name
+     */
+    #normalizeAstNodeType(nodeType: number): string {
+        switch (nodeType) {
+            case TYPE.argument:
+                return "argument";
+            case TYPE.number:
+                return "number";
+            case TYPE.date:
+                return "date";
+            case TYPE.time:
+                return "time";
+            case TYPE.select:
+                return "select";
+            case TYPE.plural:
+                return "plural";
+            case TYPE.tag:
+                return "tag";
+            case TYPE.pound:
+                return "pound";
+            case TYPE.literal:
+                return "literal";
+            default:
+                return `unknown:${String(nodeType)}`;
+        }
+    }
+
+    /**
+     * Returns whether the provided value looks like a FormatJS AST node.
+     *
+     * @param value - Value to test
+     * @returns Whether the value is an AST node
+     */
+    #isAstNode(value: unknown): value is IcuAstNode {
+        return typeof value === "object" && value !== null && "type" in value && typeof value.type === "number";
+    }
+
+    /**
+     * Returns whether the provided AST node exposes ICU options.
+     *
+     * @param node - Parsed ICU AST node
+     * @returns Whether the node has options
+     */
+    #hasOptions(node: IcuAstNode): node is IcuAstNode & { options: Record<string, { value?: Array<unknown> }> } {
+        return typeof node.options === "object" && node.options !== null;
     }
 
     /**
@@ -576,5 +673,15 @@ export class ValidationEngine {
         }
 
         return values.map((value) => `'${value}'`).join(", ");
+    }
+
+    /**
+     * Formats an ICU structural signature for issue messages.
+     *
+     * @param signature - Structural signature
+     * @returns Formatted signature
+     */
+    #formatStructureSignature(signature: Array<IcuStructureSignature>): string {
+        return JSON.stringify(signature);
     }
 }
