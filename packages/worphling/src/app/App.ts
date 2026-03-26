@@ -2,7 +2,8 @@ import { omit } from "lodash-es";
 
 import { ANSI_COLORS } from "../constants.js";
 import { LocaleDiffCalculator, LocaleStructure } from "../domain/index.js";
-import { JsonLocaleRepository, RunReportRepository, SnapshotRepository } from "../infrastructure/index.js";
+import { JsonLocaleRepository, SnapshotRepository } from "../infrastructure/index.js";
+import { RunReportRepository } from "../infrastructure/RunReportRepository.js";
 import { Translator } from "../providers/index.js";
 import type { AppConfig, FlatLocaleFiles, LocaleFiles, PlanAction, ReportFormat, RunReport } from "../types.js";
 import { ExitCode } from "../types.js";
@@ -17,7 +18,7 @@ import { RunReporter } from "./RunReporter.js";
  * - reading locale files
  * - identifying source and target locales
  * - building the diff and execution plan
- * - invoking the translation provider when needed
+ * - invoking the translation provider when policy allows
  * - writing updated locale files
  * - producing structured run reports
  */
@@ -99,39 +100,17 @@ export class App {
 
         const diffResult = this.#runPlanner.analyze(sourceLocaleFile, targetLocaleFiles, snapshot);
         const plan = this.#runPlanner.createPlan(diffResult, flags.command);
+        const executionPolicy = this.#resolveExecutionPolicy(ciMode);
 
-        const missingCount = this.#countFlatLocaleEntries(diffResult.missing);
-        const extraCount = this.#countFlatLocaleEntries(diffResult.extra);
-        const modifiedCount = this.#countFlatLocaleEntries(diffResult.modified);
-
-        this.#logDetectedChanges(missingCount, extraCount, modifiedCount);
+        this.#logDetectedChanges(diffResult);
+        this.#logExecutionMode(executionPolicy, ciMode);
 
         let updatedTargetLocaleFiles = { ...targetLocaleFiles };
         let translatedKeys: FlatLocaleFiles = {};
         let translatedCount = 0;
         let writtenFileCount = 0;
 
-        if (plan.actions.length === 0) {
-            console.log(ANSI_COLORS.green, "All target languages are already translated and up to date.");
-
-            if (runtimeConfig.output.sortKeys && flags.command !== "check" && flags.command !== "report") {
-                console.log(ANSI_COLORS.yellow, "Sorting all files as requested...");
-            }
-
-            if (!flags.dryRun && flags.command !== "check" && flags.command !== "report") {
-                const filesToWrite: LocaleFiles = {
-                    ...updatedTargetLocaleFiles,
-                    [sourceLocale]: sourceLocaleFile,
-                };
-
-                this.#localeRepository.writeAll(filesToWrite);
-                writtenFileCount = Object.keys(filesToWrite).length;
-            }
-
-            if (!snapshot && runtimeConfig.detection.snapshotFile && !flags.dryRun) {
-                this.#snapshotRepository.save(runtimeConfig.detection.snapshotFile, sourceLocale, sourceLocaleFile);
-            }
-        } else if (flags.command !== "check" && flags.command !== "report") {
+        if (executionPolicy.executePlan && plan.actions.length > 0) {
             translatedKeys = await this.#translatePlannedEntries(plan.actions);
             translatedCount = this.#countFlatLocaleEntries(translatedKeys);
 
@@ -145,21 +124,18 @@ export class App {
             updatedTargetLocaleFiles = this.#applyPlannedExtraKeyRemovals(plan.actions, updatedTargetLocaleFiles);
 
             if (runtimeConfig.output.sortKeys) {
-                console.log(ANSI_COLORS.yellow, "Sorting all files as requested...");
+                console.log(ANSI_COLORS.yellow, "Sorting written locale files as requested...");
             }
 
-            if (!flags.dryRun) {
-                const filesToWrite: LocaleFiles = {
-                    ...updatedTargetLocaleFiles,
-                    [sourceLocale]: sourceLocaleFile,
-                };
+            const localeFilesToWrite = this.#collectLocaleFilesToWrite(plan.actions, updatedTargetLocaleFiles);
 
-                this.#localeRepository.writeAll(filesToWrite);
-                writtenFileCount = Object.keys(filesToWrite).length;
+            if (executionPolicy.writeFiles && Object.keys(localeFilesToWrite).length > 0) {
+                this.#localeRepository.writeAll(localeFilesToWrite);
+                writtenFileCount = Object.keys(localeFilesToWrite).length;
+            }
 
-                if (runtimeConfig.detection.snapshotFile) {
-                    this.#snapshotRepository.save(runtimeConfig.detection.snapshotFile, sourceLocale, sourceLocaleFile);
-                }
+            if (executionPolicy.writeFiles && runtimeConfig.detection.snapshotFile && this.#shouldSaveSnapshot(plan.actions)) {
+                this.#snapshotRepository.save(runtimeConfig.detection.snapshotFile, sourceLocale, sourceLocaleFile);
             }
         }
 
@@ -170,15 +146,12 @@ export class App {
             diffResult,
             translatedCount,
             writtenFileCount,
+            validationConfig: runtimeConfig.validation,
         });
 
         this.#emitReport(report, ciMode);
 
-        if (report.summary.hasChanges && (flags.failOnChanges || runtimeConfig.ci.failOnChanges)) {
-            return ExitCode.ChangesDetected;
-        }
-
-        return ExitCode.Success;
+        return this.#resolveExitCode(report);
     }
 
     /**
@@ -200,11 +173,13 @@ export class App {
     /**
      * Logs detected diff counts in a stable order.
      *
-     * @param missingCount - Total missing key count
-     * @param extraCount - Total extra key count
-     * @param modifiedCount - Total modified key count
+     * @param diffResult - Structured diff result
      */
-    #logDetectedChanges(missingCount: number, extraCount: number, modifiedCount: number): void {
+    #logDetectedChanges(diffResult: { missing: FlatLocaleFiles; extra: FlatLocaleFiles; modified: FlatLocaleFiles }): void {
+        const missingCount = this.#countFlatLocaleEntries(diffResult.missing);
+        const extraCount = this.#countFlatLocaleEntries(diffResult.extra);
+        const modifiedCount = this.#countFlatLocaleEntries(diffResult.modified);
+
         if (missingCount > 0) {
             console.log(ANSI_COLORS.yellow, `Found ${missingCount} missing translations across all languages.`);
         }
@@ -219,6 +194,95 @@ export class App {
         if (modifiedCount > 0) {
             console.log(ANSI_COLORS.yellow, `Found ${modifiedCount} modified keys that need retranslation.`);
         }
+
+        if (missingCount === 0 && extraCount === 0 && modifiedCount === 0) {
+            console.log(ANSI_COLORS.green, "All target languages are already translated and up to date.");
+        }
+    }
+
+    /**
+     * Logs the resolved execution mode for the current command.
+     *
+     * @param executionPolicy - Resolved execution policy
+     * @param ciMode - Whether CI mode is active
+     */
+    #logExecutionMode(
+        executionPolicy: {
+            executePlan: boolean;
+            writeFiles: boolean;
+            reason?: string;
+        },
+        ciMode: boolean,
+    ): void {
+        if (executionPolicy.reason) {
+            console.log(ANSI_COLORS.yellow, executionPolicy.reason);
+        }
+
+        if (ciMode) {
+            console.log(ANSI_COLORS.yellow, "CI mode is active. Locale files will not be modified.");
+        }
+
+        if (!executionPolicy.executePlan) {
+            return;
+        }
+
+        if (executionPolicy.writeFiles) {
+            console.log(ANSI_COLORS.yellow, "Applying planned locale changes...");
+        }
+    }
+
+    /**
+     * Resolves whether the current command is allowed to execute planned
+     * mutations and write files.
+     *
+     * @param ciMode - Whether CI mode is active
+     * @returns Execution policy
+     */
+    #resolveExecutionPolicy(ciMode: boolean): {
+        executePlan: boolean;
+        writeFiles: boolean;
+        reason?: string;
+    } {
+        const flags = this.#config.flags;
+
+        if (flags.command === "check" || flags.command === "report") {
+            return {
+                executePlan: false,
+                writeFiles: false,
+                reason: "Running in analysis mode.",
+            };
+        }
+
+        const writeAllowed = flags.write && !flags.dryRun && !ciMode;
+
+        if (ciMode) {
+            return {
+                executePlan: true,
+                writeFiles: false,
+                reason: "CI mode is active. Running in non-mutating mode.",
+            };
+        }
+
+        if (flags.dryRun) {
+            return {
+                executePlan: true,
+                writeFiles: false,
+                reason: "Dry-run mode is active. Changes will not be written.",
+            };
+        }
+
+        if (!flags.write) {
+            return {
+                executePlan: false,
+                writeFiles: false,
+                reason: "Run with --write to apply planned locale changes.",
+            };
+        }
+
+        return {
+            executePlan: true,
+            writeFiles: writeAllowed,
+        };
     }
 
     /**
@@ -276,6 +340,53 @@ export class App {
     }
 
     /**
+     * Collects the locale files that should be written for the current plan.
+     *
+     * Only locales explicitly scheduled with `write-locale-file` are included.
+     *
+     * @param actions - Ordered plan actions
+     * @param targetLocaleFiles - Updated target locale files
+     * @returns Locale files to write
+     */
+    #collectLocaleFilesToWrite(actions: Array<PlanAction>, targetLocaleFiles: LocaleFiles): LocaleFiles {
+        const localesToWrite = [
+            ...new Set(
+                actions
+                    .filter(
+                        (action): action is Extract<PlanAction, { type: "write-locale-file" }> =>
+                            action.type === "write-locale-file",
+                    )
+                    .map((action) => action.locale),
+            ),
+        ].sort();
+
+        const localeFilesToWrite: LocaleFiles = {};
+
+        for (const locale of localesToWrite) {
+            const localeFile = targetLocaleFiles[locale];
+
+            if (localeFile) {
+                localeFilesToWrite[locale] = localeFile;
+            }
+        }
+
+        return localeFilesToWrite;
+    }
+
+    /**
+     * Returns whether the source snapshot should be updated after execution.
+     *
+     * Snapshot updates are only required when modified source entries were
+     * retranslated successfully.
+     *
+     * @param actions - Ordered plan actions
+     * @returns Whether the snapshot should be saved
+     */
+    #shouldSaveSnapshot(actions: Array<PlanAction>): boolean {
+        return actions.some((action) => action.type === "retranslate-modified");
+    }
+
+    /**
      * Emits the run report to console and optionally to a report file.
      *
      * @param report - Structured run report
@@ -302,6 +413,54 @@ export class App {
 
         this.#runReportRepository.write(reportFilePath, content);
         console.log(ANSI_COLORS.green, `Success: Report written to ${reportFilePath}`);
+    }
+
+    /**
+     * Resolves the final process exit code from the generated report and the
+     * active policy flags.
+     *
+     * @param report - Structured run report
+     * @param executionPolicy - Resolved execution policy
+     * @param ciMode - Whether CI mode is active
+     * @returns Process exit code
+     */
+    #resolveExitCode(report: RunReport): ExitCode {
+        const flags = this.#config.flags;
+        const runtimeConfig = this.#config.config;
+
+        if (this.#hasErrorIssues(report)) {
+            return ExitCode.ValidationError;
+        }
+
+        if ((flags.failOnWarnings || runtimeConfig.ci.failOnWarnings) && this.#hasWarningIssues(report)) {
+            return ExitCode.ValidationError;
+        }
+
+        if (report.summary.hasChanges && (flags.failOnChanges || runtimeConfig.ci.failOnChanges)) {
+            return ExitCode.ChangesDetected;
+        }
+
+        return ExitCode.Success;
+    }
+
+    /**
+     * Returns whether the report contains at least one error-severity issue.
+     *
+     * @param report - Structured run report
+     * @returns Whether error issues exist
+     */
+    #hasErrorIssues(report: RunReport): boolean {
+        return report.issues.some((issue) => issue.severity === "error");
+    }
+
+    /**
+     * Returns whether the report contains at least one warning-severity issue.
+     *
+     * @param report - Structured run report
+     * @returns Whether warning issues exist
+     */
+    #hasWarningIssues(report: RunReport): boolean {
+        return report.issues.some((issue) => issue.severity === "warning");
     }
 
     /**

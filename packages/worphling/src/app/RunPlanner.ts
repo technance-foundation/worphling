@@ -45,6 +45,13 @@ export class RunPlanner {
     /**
      * Builds the ordered execution plan for the requested command.
      *
+     * Command semantics:
+     * - `check`: analyze only
+     * - `report`: analyze only
+     * - `translate`: translate missing + modified keys
+     * - `fix`: remove extra keys only
+     * - `sync`: translate missing + modified keys and remove extra keys
+     *
      * @param diffResult - Structured diff result
      * @param command - Selected command
      * @returns Ordered execution plan
@@ -64,7 +71,7 @@ export class RunPlanner {
             const modifiedEntries = diffResult.modified[locale];
             const extraEntries = diffResult.extra[locale];
 
-            if (missingEntries && Object.keys(missingEntries).length > 0) {
+            if ((command === "translate" || command === "sync") && missingEntries && Object.keys(missingEntries).length > 0) {
                 actions.push({
                     type: "translate-missing",
                     locale,
@@ -72,7 +79,7 @@ export class RunPlanner {
                 });
             }
 
-            if (modifiedEntries && Object.keys(modifiedEntries).length > 0) {
+            if ((command === "translate" || command === "sync") && modifiedEntries && Object.keys(modifiedEntries).length > 0) {
                 actions.push({
                     type: "retranslate-modified",
                     locale,
@@ -150,20 +157,27 @@ export class RunPlanner {
     }
 
     /**
-     * Returns whether the given locale has plan mutations for the selected
-     * command.
+     * Returns whether the given locale has command-relevant mutations.
      *
      * @param locale - Target locale
      * @param diffResult - Structured diff result
      * @param command - Selected command
-     * @returns Whether the locale should be written after execution
+     * @returns Whether the locale should be scheduled for writing
      */
     #localeHasMutations(locale: string, diffResult: DiffResult, command: CommandName): boolean {
-        if (diffResult.missing[locale] && Object.keys(diffResult.missing[locale]).length > 0) {
+        if (
+            (command === "translate" || command === "sync") &&
+            diffResult.missing[locale] &&
+            Object.keys(diffResult.missing[locale]).length > 0
+        ) {
             return true;
         }
 
-        if (diffResult.modified[locale] && Object.keys(diffResult.modified[locale]).length > 0) {
+        if (
+            (command === "translate" || command === "sync") &&
+            diffResult.modified[locale] &&
+            Object.keys(diffResult.modified[locale]).length > 0
+        ) {
             return true;
         }
 

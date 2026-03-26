@@ -23,6 +23,7 @@ import type { CliFlags, CommandName, ReportFormat } from "../types.js";
  * - `--report-file`
  * - `--ci`
  * - `--fail-on-changes`
+ * - `--fail-on-warnings`
  *
  * @example
  * ```ts
@@ -51,12 +52,13 @@ export class Cli {
     #detectFlags(): CliFlags {
         const args = minimist(process.argv.slice(2), {
             string: ["config", "locales", "report-format", "report-file"],
-            boolean: ["dry-run", "write", "ci", "fail-on-changes"],
+            boolean: ["dry-run", "write", "ci", "fail-on-changes", "fail-on-warnings"],
             default: {
                 "dry-run": false,
                 write: false,
                 ci: false,
                 "fail-on-changes": false,
+                "fail-on-warnings": false,
             },
             alias: {
                 c: "config",
@@ -77,13 +79,14 @@ export class Cli {
             reportFile: this.#getOptionalString(args["report-file"]),
             ci: Boolean(args["ci"]),
             failOnChanges: Boolean(args["fail-on-changes"]),
+            failOnWarnings: Boolean(args["fail-on-warnings"]),
         };
     }
 
     /**
      * Resolves the CLI command.
      *
-     * Defaults to `"check"` when no command is provided.
+     * Defaults to `'check'` when no command is provided.
      *
      * @param value - Raw command argument
      * @returns Normalized command name
@@ -103,7 +106,7 @@ export class Cli {
     /**
      * Parses the optional locales filter.
      *
-     * Input is expected to be a comma-separated string such as `"es,fa,ru"`.
+     * Input is expected to be a comma-separated string such as `'es,fa,ru'`.
      *
      * @param value - Raw locales argument
      * @returns Parsed locale list, or `undefined` when not provided

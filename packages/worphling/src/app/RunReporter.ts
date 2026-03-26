@@ -1,4 +1,4 @@
-import type { DiffResult, ReportFormat, RunReport, RunSummary } from "../types.js";
+import type { DiffResult, LocaleIssue, ReportFormat, RunReport, RunSummary, ValidationConfig } from "../types.js";
 
 /**
  * Input required to build a structured run report.
@@ -33,6 +33,11 @@ interface RunReportBuildInput {
      * Total number of files written during execution.
      */
     writtenFileCount: number;
+
+    /**
+     * Validation behavior used to classify current diff issues.
+     */
+    validationConfig: ValidationConfig;
 }
 
 /**
@@ -49,6 +54,8 @@ export class RunReporter {
      * @returns Structured run report
      */
     buildReport(input: RunReportBuildInput): RunReport {
+        const issues = this.#buildIssues(input.diffResult, input.validationConfig);
+
         const summary: RunSummary = {
             command: input.command,
             sourceLocale: input.sourceLocale,
@@ -66,7 +73,7 @@ export class RunReporter {
 
         return {
             summary,
-            issues: [],
+            issues,
         };
     }
 
@@ -83,6 +90,100 @@ export class RunReporter {
         }
 
         return `${JSON.stringify(report, null, 2)}\n`;
+    }
+
+    /**
+     * Builds structured issues from the current diff state.
+     *
+     * This intentionally uses the already-declared issue model so current CI and
+     * reporting behavior can rely on explicit severity even before the full
+     * validation engine is introduced.
+     *
+     * @param diffResult - Structured diff result
+     * @param validationConfig - Validation behavior configuration
+     * @returns Deterministically ordered issues
+     */
+    #buildIssues(diffResult: DiffResult, validationConfig: ValidationConfig): Array<LocaleIssue> {
+        const issues: Array<LocaleIssue> = [];
+
+        issues.push(
+            ...this.#buildDiffIssues(
+                diffResult.missing,
+                "missing",
+                validationConfig.failOnMissingKeys ? "error" : "warning",
+                "Missing translation entry.",
+            ),
+        );
+
+        issues.push(
+            ...this.#buildDiffIssues(
+                diffResult.extra,
+                "extra",
+                validationConfig.failOnExtraKeys ? "error" : "warning",
+                "Extra translation entry not present in source locale.",
+            ),
+        );
+
+        issues.push(
+            ...this.#buildDiffIssues(
+                diffResult.modified,
+                "modified",
+                validationConfig.failOnModifiedSource ? "error" : "warning",
+                "Source translation changed and requires retranslation.",
+            ),
+        );
+
+        return issues.sort((left, right) => {
+            const localeComparison = left.locale.localeCompare(right.locale);
+
+            if (localeComparison !== 0) {
+                return localeComparison;
+            }
+
+            const keyComparison = left.key.localeCompare(right.key);
+
+            if (keyComparison !== 0) {
+                return keyComparison;
+            }
+
+            return left.type.localeCompare(right.type);
+        });
+    }
+
+    /**
+     * Builds issues for a single diff category.
+     *
+     * @param localeFiles - Flat locale files grouped by locale
+     * @param type - Issue type
+     * @param severity - Issue severity
+     * @param message - Human-readable issue message
+     * @returns Issue list
+     */
+    #buildDiffIssues(
+        localeFiles: Record<string, Record<string, string>>,
+        type: LocaleIssue["type"],
+        severity: LocaleIssue["severity"],
+        message: string,
+    ): Array<LocaleIssue> {
+        const issues: Array<LocaleIssue> = [];
+
+        for (const locale of Object.keys(localeFiles).sort()) {
+            const entries = localeFiles[locale];
+
+            for (const key of Object.keys(entries).sort()) {
+                issues.push({
+                    type,
+                    severity,
+                    locale,
+                    key,
+                    message,
+                    sourceValue: type === "extra" ? undefined : entries[key],
+                    targetValue: type === "extra" ? entries[key] : undefined,
+                });
+            }
+        }
+
+        return issues;
     }
 
     /**

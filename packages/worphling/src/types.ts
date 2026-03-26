@@ -392,6 +392,11 @@ export interface CliFlags {
      * Whether the process should fail when changes are detected.
      */
     failOnChanges: boolean;
+
+    /**
+     * Whether warnings should cause the process to fail.
+     */
+    failOnWarnings: boolean;
 }
 
 /**
