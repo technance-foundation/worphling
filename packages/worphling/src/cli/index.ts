@@ -2,7 +2,12 @@
 
 import { App, ConfigLoader } from "../app/index.js";
 import { ANSI_COLORS } from "../constants.js";
-import { ConfigValidationError, WorphlingError } from "../errors.js";
+import {
+    ConfigValidationError,
+    ProviderResponseValidationError,
+    TranslationProviderExecutionError,
+    WorphlingError,
+} from "../errors.js";
 import type { ExitCode as ExitCodeType } from "../types.js";
 import { ExitCode } from "../types.js";
 
@@ -54,6 +59,10 @@ export * from "../types.js";
 function resolveExitCode(error: unknown): ExitCodeType {
     if (error instanceof ConfigValidationError) {
         return ExitCode.ConfigError;
+    }
+
+    if (error instanceof TranslationProviderExecutionError || error instanceof ProviderResponseValidationError) {
+        return ExitCode.ProviderError;
     }
 
     if (error instanceof WorphlingError) {

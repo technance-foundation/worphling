@@ -35,9 +35,14 @@ interface RunReportBuildInput {
     writtenFileCount: number;
 
     /**
-     * Structured issues collected during validation.
+     * Structured issues collected during validation or execution.
      */
     issues: Array<LocaleIssue>;
+
+    /**
+     * Whether provider execution failed during the run.
+     */
+    hasProviderFailure?: boolean;
 }
 
 /**
@@ -67,6 +72,7 @@ export class RunReporter {
                 this.#countFlatLocaleEntries(input.diffResult.missing) > 0 ||
                 this.#countFlatLocaleEntries(input.diffResult.extra) > 0 ||
                 this.#countFlatLocaleEntries(input.diffResult.modified) > 0,
+            hasProviderFailure: input.hasProviderFailure,
         };
 
         return {

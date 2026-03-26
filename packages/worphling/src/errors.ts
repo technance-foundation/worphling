@@ -238,3 +238,30 @@ export class UnsupportedProviderError extends WorphlingError {
         this.providerName = providerName;
     }
 }
+
+/**
+ * Thrown when a translation provider request fails during execution.
+ */
+export class TranslationProviderExecutionError extends WorphlingError {
+    /**
+     * Provider name associated with the failure.
+     */
+    readonly providerName: string;
+
+    /**
+     * Original failure reason.
+     */
+    readonly reason: string;
+
+    /**
+     * Creates a new translation-provider-execution error.
+     *
+     * @param providerName - Translation provider name
+     * @param reason - Underlying failure reason
+     */
+    constructor(providerName: string, reason: string) {
+        super(`Translation provider "${providerName}" failed: ${reason}`);
+        this.providerName = providerName;
+        this.reason = reason;
+    }
+}

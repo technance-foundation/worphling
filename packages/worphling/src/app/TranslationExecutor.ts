@@ -1,5 +1,5 @@
 import { ANSI_COLORS } from "../constants.js";
-import { ProviderResponseValidationError } from "../errors.js";
+import { TranslationProviderExecutionError } from "../errors.js";
 import type {
     FlatLocaleFile,
     FlatLocaleFiles,
@@ -221,7 +221,7 @@ export class TranslationExecutor {
                 if (maximumAttempts > 1) {
                     console.log(
                         ANSI_COLORS.yellow,
-                        `Translating locale "${plannedBatch.locale}" batch ${plannedBatch.batchIndex + 1} of ${maximumAttempts} attempt${maximumAttempts > 1 ? "s" : ""}, current attempt ${currentAttempt}.`,
+                        `Translating locale "${plannedBatch.locale}" batch ${plannedBatch.batchIndex + 1}, attempt ${currentAttempt} of ${maximumAttempts}.`,
                     );
                 }
 
@@ -243,8 +243,9 @@ export class TranslationExecutor {
             }
         }
 
-        throw new ProviderResponseValidationError(
-            `Translation failed for locale "${plannedBatch.locale}" batch ${plannedBatch.batchIndex + 1} after ${maximumAttempts} attempt${maximumAttempts > 1 ? "s" : ""}: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
+        throw new TranslationProviderExecutionError(
+            this.#provider.name,
+            `Locale "${plannedBatch.locale}" batch ${plannedBatch.batchIndex + 1} failed after ${maximumAttempts} attempt${maximumAttempts > 1 ? "s" : ""}: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
         );
     }
 

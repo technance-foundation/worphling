@@ -1,12 +1,14 @@
 import { omit } from "lodash-es";
 
 import { LocaleDiffCalculator, LocaleStructure, TranslationPluginRegistry, ValidationEngine } from "../domain/index.js";
+import { TranslationProviderExecutionError } from "../errors.js";
 import { JsonLocaleRepository, RunReportRepository, SnapshotRepository } from "../infrastructure/index.js";
 import { TranslationProviderFactory } from "../providers/index.js";
 import type {
     AppConfig,
     FlatLocaleFiles,
     LocaleFiles,
+    LocaleIssue,
     PlanAction,
     ReportFormat,
     RunReport,
@@ -89,7 +91,11 @@ export class App {
         const translationProvider: TranslationProviderContract = new TranslationProviderFactory().create(config.config, plugin);
 
         this.#config = config;
-        this.#localeRepository = new JsonLocaleRepository(config.config.localesDir, config.config.output);
+        this.#localeRepository = new JsonLocaleRepository(
+            config.config.localesDir,
+            config.config.filePattern,
+            config.config.output,
+        );
         this.#snapshotRepository = new SnapshotRepository(localeStructure);
         this.#localeDiffCalculator = localeDiffCalculator;
         this.#runPlanner = new RunPlanner(localeDiffCalculator);
@@ -119,9 +125,17 @@ export class App {
 
         const allTargetLocaleFiles = omit(allLocaleFiles, sourceLocale) as LocaleFiles;
         const targetLocaleFiles = this.#filterLocales(allTargetLocaleFiles);
-        const snapshot = this.#snapshotRepository.load(runtimeConfig.detection.snapshotFile);
+        const snapshot =
+            runtimeConfig.detection.strategy === "git-diff"
+                ? null
+                : this.#snapshotRepository.load(runtimeConfig.detection.snapshotFile);
 
-        const diffResult = this.#runPlanner.analyze(sourceLocaleFile, targetLocaleFiles, snapshot);
+        const diffResult = this.#runPlanner.analyze(
+            sourceLocaleFile,
+            targetLocaleFiles,
+            snapshot,
+            runtimeConfig.detection.strategy,
+        );
         const plan = this.#runPlanner.createPlan(diffResult, flags.command);
         const executionPolicy = this.#resolveExecutionPolicy(ciMode);
 
@@ -129,38 +143,70 @@ export class App {
         let translatedKeys: FlatLocaleFiles = {};
         let translatedCount = 0;
         let writtenFileCount = 0;
+        let providerIssues: Array<LocaleIssue> = [];
+        let hasProviderFailure = false;
 
         if (executionPolicy.executePlan && plan.actions.length > 0) {
-            translatedKeys = await this.#translatePlannedEntries(plan.actions);
-            translatedCount = this.#countFlatLocaleEntries(translatedKeys);
+            try {
+                translatedKeys = await this.#translatePlannedEntries(plan.actions);
+                translatedCount = this.#countFlatLocaleEntries(translatedKeys);
 
-            if (translatedCount > 0) {
-                updatedTargetLocaleFiles = this.#localeDiffCalculator.updateTargetLocales(
-                    updatedTargetLocaleFiles,
-                    translatedKeys,
-                );
-            }
+                if (translatedCount > 0) {
+                    updatedTargetLocaleFiles = this.#localeDiffCalculator.updateTargetLocales(
+                        updatedTargetLocaleFiles,
+                        translatedKeys,
+                    );
+                }
 
-            updatedTargetLocaleFiles = this.#applyPlannedExtraKeyRemovals(plan.actions, updatedTargetLocaleFiles);
+                updatedTargetLocaleFiles = this.#applyPlannedExtraKeyRemovals(plan.actions, updatedTargetLocaleFiles);
 
-            const localeFilesToWrite = this.#collectLocaleFilesToWrite(plan.actions, updatedTargetLocaleFiles);
+                const localeFilesToWrite = this.#collectLocaleFilesToWrite(plan.actions, updatedTargetLocaleFiles);
 
-            if (executionPolicy.writeFiles && Object.keys(localeFilesToWrite).length > 0) {
-                this.#localeRepository.writeAll(localeFilesToWrite);
-                writtenFileCount = Object.keys(localeFilesToWrite).length;
-            }
+                if (executionPolicy.writeFiles && Object.keys(localeFilesToWrite).length > 0) {
+                    this.#localeRepository.writeAll(localeFilesToWrite);
+                    writtenFileCount = Object.keys(localeFilesToWrite).length;
+                }
 
-            if (executionPolicy.writeFiles && runtimeConfig.detection.snapshotFile && this.#shouldSaveSnapshot(plan.actions)) {
-                this.#snapshotRepository.save(runtimeConfig.detection.snapshotFile, sourceLocale, sourceLocaleFile);
+                if (
+                    executionPolicy.writeFiles &&
+                    runtimeConfig.detection.snapshotFile &&
+                    this.#shouldSaveSnapshot(plan.actions) &&
+                    (runtimeConfig.detection.strategy === "snapshot" || runtimeConfig.detection.strategy === "hash")
+                ) {
+                    this.#snapshotRepository.save(
+                        runtimeConfig.detection.snapshotFile,
+                        sourceLocale,
+                        sourceLocaleFile,
+                        runtimeConfig.detection.strategy,
+                    );
+                }
+            } catch (error) {
+                if (error instanceof TranslationProviderExecutionError) {
+                    hasProviderFailure = true;
+                    providerIssues = [
+                        {
+                            type: "provider-error",
+                            severity: "error",
+                            locale: "global",
+                            key: "translation-execution",
+                            message: error.message,
+                        },
+                    ];
+                } else {
+                    throw error;
+                }
             }
         }
 
-        const issues = this.#validationEngine.validate({
-            sourceLocaleFile,
-            targetLocaleFiles: updatedTargetLocaleFiles,
-            diffResult,
-            validationConfig: runtimeConfig.validation,
-        });
+        const issues = [
+            ...this.#validationEngine.validate({
+                sourceLocaleFile,
+                targetLocaleFiles: updatedTargetLocaleFiles,
+                diffResult,
+                validationConfig: runtimeConfig.validation,
+            }),
+            ...providerIssues,
+        ];
 
         const report = this.#runReporter.buildReport({
             command: flags.command,
@@ -170,6 +216,7 @@ export class App {
             translatedCount,
             writtenFileCount,
             issues,
+            hasProviderFailure,
         });
 
         this.#emitReport(report, ciMode);
@@ -367,6 +414,10 @@ export class App {
     #resolveExitCode(report: RunReport): ExitCode {
         const flags = this.#config.flags;
         const runtimeConfig = this.#config.config;
+
+        if (report.issues.some((issue) => issue.type === "provider-error")) {
+            return ExitCode.ProviderError;
+        }
 
         if (this.#hasErrorIssues(report)) {
             return ExitCode.ValidationError;

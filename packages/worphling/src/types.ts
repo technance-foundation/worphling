@@ -708,6 +708,11 @@ export interface RunSummary {
      * Whether the run changed files or would change files in dry-run mode.
      */
     hasChanges: boolean;
+
+    /**
+     * Whether translation execution failed due to a provider error.
+     */
+    hasProviderFailure?: boolean;
 }
 
 /**
