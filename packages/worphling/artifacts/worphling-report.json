@@ -1,0 +1,26 @@
+{
+  "summary": {
+    "command": "check",
+    "sourceLocale": "en",
+    "targetLocales": [
+      "fa"
+    ],
+    "missingCount": 1,
+    "extraCount": 0,
+    "modifiedCount": 0,
+    "translatedCount": 0,
+    "writtenFileCount": 0,
+    "hasChanges": true,
+    "hasProviderFailure": false
+  },
+  "issues": [
+    {
+      "type": "missing",
+      "severity": "warning",
+      "locale": "fa",
+      "key": "farewell",
+      "message": "Missing translation entry.",
+      "sourceValue": "Goodbye"
+    }
+  ]
+}
