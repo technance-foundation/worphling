@@ -1,4 +1,5 @@
-import { ANSI_COLORS } from "../constants.js";
+import pc from "picocolors";
+
 import type { Logger } from "../types.js";
 
 /**
@@ -9,7 +10,10 @@ import type { Logger } from "../types.js";
  */
 export class ConsoleLogger implements Logger {
     /**
-     * Logs a message.
+     * Logs a neutral message without a level prefix.
+     *
+     * This is mainly useful for already-formatted multi-line output such as
+     * rendered markdown reports or help text.
      *
      * @param message - Message to write
      */
@@ -18,12 +22,12 @@ export class ConsoleLogger implements Logger {
     }
 
     /**
-     * Logs a neutral informational message.
+     * Logs an informational message.
      *
      * @param message - Message to write
      */
     info(message: string): void {
-        console.log(message);
+        console.log(pc.cyan(`[INFO] ${message}`));
     }
 
     /**
@@ -32,7 +36,7 @@ export class ConsoleLogger implements Logger {
      * @param message - Message to write
      */
     success(message: string): void {
-        console.log(ANSI_COLORS.green, message);
+        console.log(pc.green(`[SUCCESS] ${message}`));
     }
 
     /**
@@ -41,7 +45,7 @@ export class ConsoleLogger implements Logger {
      * @param message - Message to write
      */
     warn(message: string): void {
-        console.log(ANSI_COLORS.yellow, message);
+        console.log(pc.yellow(`[WARN] ${message}`));
     }
 
     /**
@@ -50,6 +54,6 @@ export class ConsoleLogger implements Logger {
      * @param message - Message to write
      */
     error(message: string): void {
-        console.error(ANSI_COLORS.red, message);
+        console.error(pc.red(`[ERROR] ${message}`));
     }
 }

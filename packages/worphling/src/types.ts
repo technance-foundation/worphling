@@ -784,6 +784,13 @@ export enum ExitCode {
  */
 export interface Logger {
     /**
+     * Logs a message.
+     *
+     * @param message - Message to write
+     */
+    log(message: string): void;
+
+    /**
      * Logs a neutral informational message.
      *
      * @param message - Message to write

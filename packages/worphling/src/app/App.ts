@@ -99,8 +99,12 @@ export class App {
         const localeStructure = new LocaleStructure();
         const localeDiffCalculator = new LocaleDiffCalculator(localeStructure);
         const plugin = new TranslationPluginRegistry().resolve(config.config.plugin.name);
-        const translationProvider: TranslationProviderContract = new TranslationProviderFactory().create(config.config, plugin);
         const logger = config.logger || new ConsoleLogger();
+        const translationProvider: TranslationProviderContract = new TranslationProviderFactory().create(
+            config.config,
+            plugin,
+            logger,
+        );
 
         this.#config = config;
         this.#logger = logger;

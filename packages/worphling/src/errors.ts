@@ -254,14 +254,28 @@ export class TranslationProviderExecutionError extends WorphlingError {
     readonly reason: string;
 
     /**
+     * Optional locale associated with the failed request.
+     */
+    readonly locale?: string;
+
+    /**
+     * Optional batch index associated with the failed request.
+     */
+    readonly batchIndex?: number;
+
+    /**
      * Creates a new translation-provider-execution error.
      *
      * @param providerName - Translation provider name
      * @param reason - Underlying failure reason
+     * @param locale - Optional locale associated with the failed request
+     * @param batchIndex - Optional batch index associated with the failed request
      */
-    constructor(providerName: string, reason: string) {
+    constructor(providerName: string, reason: string, locale?: string, batchIndex?: number) {
         super(`Translation provider "${providerName}" failed: ${reason}`);
         this.providerName = providerName;
         this.reason = reason;
+        this.locale = locale;
+        this.batchIndex = batchIndex;
     }
 }

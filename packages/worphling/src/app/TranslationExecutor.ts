@@ -95,6 +95,10 @@ export class TranslationExecutor {
      * Executes all translation-relevant plan actions and returns deterministically
      * merged translated entries grouped by locale.
      *
+     * The execution log intentionally includes batch sizing and provider context
+     * so timeout and provider-failure incidents can be diagnosed more easily in
+     * real-world runs.
+     *
      * @param actions - Ordered plan actions
      * @returns Translated flat locale entries grouped by locale
      */
@@ -105,7 +109,7 @@ export class TranslationExecutor {
             return {};
         }
 
-        this.#logger.warn(
+        this.#logger.info(
             `Executing ${plannedBatches.length} translation batch${plannedBatches.length > 1 ? "es" : ""} with concurrency ${this.#translationConfig.concurrency}.`,
         );
 
@@ -215,39 +219,65 @@ export class TranslationExecutor {
     }
 
     /**
-     * Executes a single batch with retry handling.
+     * Executes a single batch with retry handling and diagnostic logging.
+     *
+     * Logged diagnostics include:
+     * - provider and model
+     * - locale and batch number
+     * - entry count
+     * - approximate source character count
+     * - first and last key in the batch
+     * - per-attempt duration
+     * - normalized error details
      *
      * @param plannedBatch - Planned translation batch
      * @returns Completed batch result
      */
     async #executeBatchWithRetries(plannedBatch: PlannedTranslationBatch): Promise<TranslationBatchResult> {
         const maximumAttempts = this.#translationConfig.maxRetries + 1;
+        const model = this.#runtimeConfig.provider.model;
+        const entryCount = plannedBatch.batch.entries.length;
+        const approximateCharacterCount = this.#getBatchCharacterCount(plannedBatch.batch);
+        const keyRange = this.#summarizeBatchKeys(plannedBatch.batch);
+
         let currentAttempt = 0;
         let lastError: unknown;
 
         while (currentAttempt < maximumAttempts) {
             currentAttempt += 1;
 
-            try {
-                if (maximumAttempts > 1) {
-                    this.#logger.warn(
-                        `Translating locale "${plannedBatch.locale}" batch ${plannedBatch.batchIndex + 1}, attempt ${currentAttempt} of ${maximumAttempts}.`,
-                    );
-                }
+            const startedAt = Date.now();
 
-                return await this.#provider.translate(plannedBatch.batch, this.#runtimeConfig);
+            this.#logger.info(
+                `Translating locale "${plannedBatch.locale}" batch ${plannedBatch.batchIndex + 1}, attempt ${currentAttempt} of ${maximumAttempts}. Provider="${this.#provider.name}", model="${model}", entries=${entryCount}, approxChars=${approximateCharacterCount}, keys=${keyRange}.`,
+            );
+
+            try {
+                const result = await this.#provider.translate(plannedBatch.batch, this.#runtimeConfig);
+                const durationMs = Date.now() - startedAt;
+
+                this.#logger.success(
+                    `Translated locale "${plannedBatch.locale}" batch ${plannedBatch.batchIndex + 1} in ${durationMs}ms.`,
+                );
+
+                return result;
             } catch (error) {
                 lastError = error;
 
+                const durationMs = Date.now() - startedAt;
                 const hasRemainingAttempts = currentAttempt < maximumAttempts;
-                const reason = error instanceof Error ? error.message : String(error);
+                const formattedError = this.#formatErrorDetails(error);
 
                 if (!hasRemainingAttempts) {
+                    this.#logger.error(
+                        `Translation failed for locale "${plannedBatch.locale}" batch ${plannedBatch.batchIndex + 1} after ${durationMs}ms. ${formattedError}`,
+                    );
+
                     break;
                 }
 
                 this.#logger.warn(
-                    `Retrying locale "${plannedBatch.locale}" batch ${plannedBatch.batchIndex + 1} after failure: ${reason}`,
+                    `Retrying locale "${plannedBatch.locale}" batch ${plannedBatch.batchIndex + 1} after ${durationMs}ms due to failure: ${formattedError}`,
                 );
             }
         }
@@ -255,6 +285,8 @@ export class TranslationExecutor {
         throw new TranslationProviderExecutionError(
             this.#provider.name,
             `Locale "${plannedBatch.locale}" batch ${plannedBatch.batchIndex + 1} failed after ${maximumAttempts} attempt${maximumAttempts > 1 ? "s" : ""}: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
+            plannedBatch.locale,
+            plannedBatch.batchIndex,
         );
     }
 
@@ -290,5 +322,77 @@ export class TranslationExecutor {
         }
 
         return mergedResults;
+    }
+
+    /**
+     * Returns an approximate character count for a provider batch.
+     *
+     * This is not a token count. It is a lightweight diagnostic estimate used
+     * for troubleshooting oversized translation requests.
+     *
+     * @param batch - Translation batch
+     * @returns Approximate character count
+     */
+    #getBatchCharacterCount(batch: TranslationBatch): number {
+        return batch.entries.reduce((total, entry) => total + entry.key.length + entry.source.length, 0);
+    }
+
+    /**
+     * Returns a stable summary of the first and last key in a batch.
+     *
+     * @param batch - Translation batch
+     * @returns Human-readable key range
+     */
+    #summarizeBatchKeys(batch: TranslationBatch): string {
+        if (batch.entries.length === 0) {
+            return "n/a";
+        }
+
+        const firstKey = batch.entries[0]?.key || "n/a";
+        const lastKey = batch.entries[batch.entries.length - 1]?.key || "n/a";
+
+        return firstKey === lastKey ? firstKey : `${firstKey} -> ${lastKey}`;
+    }
+
+    /**
+     * Formats an unknown provider error into a more useful diagnostic string.
+     *
+     * The formatter attempts to surface common SDK and transport metadata such
+     * as error name, code, status, type, and nested cause details when present.
+     *
+     * @param error - Unknown thrown error
+     * @returns Human-readable diagnostic summary
+     */
+    #formatErrorDetails(error: unknown): string {
+        if (!(error instanceof Error)) {
+            return String(error);
+        }
+
+        const details: Array<string> = [`name=${error.name}`, `message=${error.message}`];
+
+        const errorWithMetadata = error as Error & {
+            code?: string;
+            status?: number;
+            type?: string;
+            cause?: unknown;
+        };
+
+        if (errorWithMetadata.code) {
+            details.push(`code=${errorWithMetadata.code}`);
+        }
+
+        if (typeof errorWithMetadata.status === "number") {
+            details.push(`status=${errorWithMetadata.status}`);
+        }
+
+        if (errorWithMetadata.type) {
+            details.push(`type=${errorWithMetadata.type}`);
+        }
+
+        if (errorWithMetadata.cause instanceof Error) {
+            details.push(`cause=${errorWithMetadata.cause.name}: ${errorWithMetadata.cause.message}`);
+        }
+
+        return details.join(", ");
     }
 }

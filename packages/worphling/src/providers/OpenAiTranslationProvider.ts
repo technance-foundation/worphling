@@ -4,6 +4,7 @@ import { DEFAULT_OPENAI_MODEL, DEFAULT_PROVIDER_TEMPERATURE } from "../constants
 import { ProviderResponseValidationError } from "../errors.js";
 import type {
     FlatLocaleFile,
+    Logger,
     ResolvedConfig,
     TranslationBatch,
     TranslationBatchResult,
@@ -23,6 +24,11 @@ import type {
  * retries, or concurrency orchestration.
  */
 export class OpenAiTranslationProvider implements TranslationProviderContract {
+    /**
+     * Runtime logger used for provider-level diagnostics.
+     */
+    #logger: Logger;
+
     /**
      * OpenAI client instance used for translation requests.
      */
@@ -53,11 +59,13 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
      *
      * @param config - Fully resolved runtime configuration
      * @param plugin - Active translation plugin
+     * @param logger - Runtime logger
      * @param contextInstructions - Optional preloaded translation context instructions
      */
-    constructor(config: ResolvedConfig, plugin: TranslationPluginContract, contextInstructions?: string) {
+    constructor(config: ResolvedConfig, plugin: TranslationPluginContract, logger: Logger, contextInstructions?: string) {
         this.#config = config;
         this.#plugin = plugin;
+        this.#logger = logger;
         this.#contextInstructions = contextInstructions;
         this.#client = new OpenAI({
             apiKey: config.provider.apiKey,
@@ -69,12 +77,21 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
      *
      * This method satisfies the `TranslationProviderContract`.
      *
+     * Provider-level diagnostics are logged here so real-world failures can be
+     * correlated with locale, model, entry count, and approximate payload size.
+     *
      * @param batch - Translation batch
      * @param config - Optional resolved runtime config override
      * @returns Translated batch result
      */
     async translate(batch: TranslationBatch, config?: ResolvedConfig): Promise<TranslationBatchResult> {
         const runtimeConfig = config || this.#config;
+        const approximateCharacterCount = this.#getBatchCharacterCount(batch);
+
+        this.#logger.info(
+            `Preparing OpenAI translation request for locale "${batch.locale}" with ${batch.entries.length} entr${batch.entries.length === 1 ? "y" : "ies"} using model "${runtimeConfig.provider.model}". ApproxChars=${approximateCharacterCount}.`,
+        );
+
         const responseText = await this.#fetchBatchTranslations(batch, runtimeConfig);
         const entries = this.#parseBatchTranslations(responseText, batch);
 
@@ -82,43 +99,6 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
             locale: batch.locale,
             entries,
         };
-    }
-
-    /**
-     * Sends a single translation batch to OpenAI and returns the raw JSON
-     * response text.
-     *
-     * @param batch - Translation batch
-     * @param config - Resolved runtime configuration
-     * @returns Raw JSON response text
-     */
-    async #fetchBatchTranslations(batch: TranslationBatch, config: ResolvedConfig): Promise<string> {
-        const exactLength = config.translation.exactLength;
-        const model = config.provider.model || DEFAULT_OPENAI_MODEL;
-        const temperature = config.provider.temperature ?? DEFAULT_PROVIDER_TEMPERATURE;
-        const payload = this.#buildBatchPayload(batch);
-
-        const response = await this.#client.chat.completions.create({
-            model,
-            response_format: {
-                type: "json_object",
-            },
-            messages: [
-                {
-                    role: "system",
-                    content: this.#buildSystemPrompt(exactLength, this.#contextInstructions),
-                },
-                {
-                    role: "user",
-                    content: JSON.stringify(payload, null, 2),
-                },
-            ],
-            temperature,
-        });
-
-        const content = response.choices[0]?.message?.content;
-
-        return content || "{}";
     }
 
     /**
@@ -222,5 +202,60 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
         }
 
         return Object.values(value).every((entryValue) => typeof entryValue === "string");
+    }
+
+    /**
+     * Sends a single translation batch to OpenAI and returns the raw JSON
+     * response text.
+     *
+     * @param batch - Translation batch
+     * @param config - Resolved runtime configuration
+     * @returns Raw JSON response text
+     */
+    async #fetchBatchTranslations(batch: TranslationBatch, config: ResolvedConfig): Promise<string> {
+        const exactLength = config.translation.exactLength;
+        const model = config.provider.model || DEFAULT_OPENAI_MODEL;
+        const temperature = config.provider.temperature ?? DEFAULT_PROVIDER_TEMPERATURE;
+        const payload = this.#buildBatchPayload(batch);
+        const systemPrompt = this.#buildSystemPrompt(exactLength, this.#contextInstructions);
+        const userPayload = JSON.stringify(payload, null, 2);
+
+        this.#logger.info(
+            `Sending OpenAI request for locale "${batch.locale}". systemPromptChars=${systemPrompt.length}, userPayloadChars=${userPayload.length}.`,
+        );
+
+        const response = await this.#client.chat.completions.create({
+            model,
+            response_format: {
+                type: "json_object",
+            },
+            messages: [
+                {
+                    role: "system",
+                    content: systemPrompt,
+                },
+                {
+                    role: "user",
+                    content: userPayload,
+                },
+            ],
+            temperature,
+        });
+
+        const content = response.choices[0]?.message?.content;
+
+        return content || "{}";
+    }
+
+    /**
+     * Returns an approximate character count for a provider batch.
+     *
+     * This is used only for diagnostics and not for batching decisions.
+     *
+     * @param batch - Translation batch
+     * @returns Approximate character count
+     */
+    #getBatchCharacterCount(batch: TranslationBatch): number {
+        return batch.entries.reduce((total, entry) => total + entry.key.length + entry.source.length, 0);
     }
 }
