@@ -10,8 +10,12 @@
     "private": true,
     "scripts": {
         "start": "worphling",
-        "start:exact": "worphling --try-exact-length",
-        "start:exact-sort": "worphling --try-exact-length --with-sorting"
+        "check": "worphling check",
+        "check:ci": "worphling check --ci",
+        "sync": "worphling sync --write",
+        "translate": "worphling translate --write",
+        "fix": "worphling fix --write",
+        "report": "worphling report --report-file ./artifacts/worphling-report.md"
     },
     "type": "module",
     "version": "0.0.0"
