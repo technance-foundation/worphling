@@ -9,6 +9,15 @@ import type { Logger } from "../types.js";
  */
 export class ConsoleLogger implements Logger {
     /**
+     * Logs a message.
+     *
+     * @param message - Message to write
+     */
+    log(message: string): void {
+        console.log(message);
+    }
+
+    /**
      * Logs a neutral informational message.
      *
      * @param message - Message to write

@@ -13,7 +13,7 @@ import type {
  * These commands are intentionally modeled up front so the runtime,
  * configuration, and reporting layers can share a stable vocabulary.
  */
-export type CommandName = "check" | "translate" | "fix" | "sync" | "report";
+export type CommandName = "help" | "check" | "translate" | "fix" | "sync" | "report";
 
 /**
  * Supported translation provider names.

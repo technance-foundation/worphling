@@ -7,7 +7,7 @@ import {
     TranslationProviderExecutionError,
     WorphlingError,
 } from "../errors.js";
-import { ConsoleLogger } from "../infrastructure/index.js";
+import { ConsoleLogger } from "../infrastructure/ConsoleLogger.js";
 import type { ExitCode as ExitCodeType } from "../types.js";
 import { ExitCode } from "../types.js";
 
@@ -29,13 +29,18 @@ export * from "../types.js";
 
     try {
         const cli = new Cli();
+
+        if (cli.flags.command === "help") {
+            logger.log(Cli.renderHelp());
+            process.exit(ExitCode.Success);
+        }
+
         const configLoader = new ConfigLoader(cli.flags.configPath);
         const config = await configLoader.load();
 
         const app = new App({
             config,
             flags: cli.flags,
-            logger,
         });
 
         const statusCode = await app.run();
@@ -45,6 +50,8 @@ export * from "../types.js";
 
         if (error instanceof Error) {
             logger.error(`Error: ${error.message}`);
+            logger.log("");
+            logger.log(Cli.renderHelp());
         } else {
             logger.error("Error: Unknown error.");
         }
