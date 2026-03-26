@@ -2,8 +2,7 @@ import { omit } from "lodash-es";
 
 import { ANSI_COLORS } from "../constants.js";
 import { LocaleDiffCalculator, LocaleStructure } from "../domain/index.js";
-import { JsonLocaleRepository, SnapshotRepository } from "../infrastructure/index.js";
-import { RunReportRepository } from "../infrastructure/RunReportRepository.js";
+import { JsonLocaleRepository, RunReportRepository, SnapshotRepository } from "../infrastructure/index.js";
 import { Translator } from "../providers/index.js";
 import type { AppConfig, FlatLocaleFiles, LocaleFiles, PlanAction, ReportFormat, RunReport } from "../types.js";
 import { ExitCode } from "../types.js";
