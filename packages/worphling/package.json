@@ -4,6 +4,7 @@
         "worphling": "dist/index.js"
     },
     "dependencies": {
+        "@formatjs/icu-messageformat-parser": "catalog:",
         "lodash-es": "catalog:",
         "minimist": "catalog:",
         "openai": "catalog:",
