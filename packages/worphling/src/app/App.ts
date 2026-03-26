@@ -4,11 +4,21 @@ import { ANSI_COLORS } from "../constants.js";
 import { LocaleDiffCalculator, LocaleStructure, ValidationEngine } from "../domain/index.js";
 import { JsonLocaleRepository, RunReportRepository, SnapshotRepository } from "../infrastructure/index.js";
 import { Translator } from "../providers/index.js";
-import type { AppConfig, DiffResult, FlatLocaleFiles, LocaleFiles, PlanAction, ReportFormat, RunReport } from "../types.js";
+import type {
+    AppConfig,
+    DiffResult,
+    FlatLocaleFiles,
+    LocaleFiles,
+    PlanAction,
+    ReportFormat,
+    RunReport,
+    TranslationProviderContract,
+} from "../types.js";
 import { ExitCode } from "../types.js";
 
 import { RunPlanner } from "./RunPlanner.js";
 import { RunReporter } from "./RunReporter.js";
+import { TranslationExecutor } from "./TranslationExecutor.js";
 
 /**
  * Main Worphling application runtime.
@@ -64,6 +74,12 @@ export class App {
     #runReportRepository: RunReportRepository;
 
     /**
+     * Translation executor used for batching, retries, concurrency, and
+     * deterministic merge behavior.
+     */
+    #translationExecutor: TranslationExecutor;
+
+    /**
      * Creates a new Worphling runtime application.
      *
      * @param config - Runtime config and CLI flags
@@ -80,6 +96,9 @@ export class App {
         this.#validationEngine = new ValidationEngine(localeStructure);
         this.#runReporter = new RunReporter();
         this.#runReportRepository = new RunReportRepository();
+
+        const translationProvider: TranslationProviderContract = new Translator(config.config);
+        this.#translationExecutor = new TranslationExecutor(translationProvider, config.config.translation, config.config);
     }
 
     /**
@@ -305,26 +324,7 @@ export class App {
      * @returns Translated flat locale entries grouped by locale
      */
     async #translatePlannedEntries(actions: Array<PlanAction>): Promise<FlatLocaleFiles> {
-        const keysToTranslate: FlatLocaleFiles = {};
-
-        for (const action of actions) {
-            if (action.type !== "translate-missing" && action.type !== "retranslate-modified") {
-                continue;
-            }
-
-            keysToTranslate[action.locale] = {
-                ...(keysToTranslate[action.locale] || {}),
-                ...action.entries,
-            };
-        }
-
-        if (!Object.keys(keysToTranslate).length) {
-            return {};
-        }
-
-        const translator = new Translator(this.#config.config);
-
-        return translator.translateAll(keysToTranslate);
+        return this.#translationExecutor.execute(actions);
     }
 
     /**

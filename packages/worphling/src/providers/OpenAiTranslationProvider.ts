@@ -5,7 +5,6 @@ import { EXAMPLE_INPUT, EXAMPLE_NEXT_INTL_INPUT, EXAMPLE_NEXT_INTL_OUTPUT, EXAMP
 import { ProviderResponseValidationError } from "../errors.js";
 import type {
     FlatLocaleFile,
-    FlatLocaleFiles,
     PluginName,
     ResolvedConfig,
     TranslationBatch,
@@ -21,7 +20,8 @@ import type {
  * - selecting the appropriate prompt examples for the active plugin
  * - validating and parsing the provider response
  *
- * It does not perform filesystem operations or diff calculation.
+ * It does not perform filesystem operations, diff calculation, batching,
+ * retries, or concurrency orchestration.
  */
 export class OpenAiTranslationProvider implements TranslationProviderContract {
     /**
@@ -72,31 +72,6 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
     }
 
     /**
-     * Translates multiple locales in the current app-oriented shape.
-     *
-     * @param keysToTranslate - Flat translation entries grouped by locale
-     * @returns Translated flat locale entries grouped by locale
-     */
-    async translateAll(keysToTranslate: FlatLocaleFiles): Promise<FlatLocaleFiles> {
-        const result: FlatLocaleFiles = {};
-
-        for (const [locale, entries] of Object.entries(keysToTranslate)) {
-            const batch: TranslationBatch = {
-                locale,
-                entries: Object.entries(entries).map(([key, source]) => ({
-                    key,
-                    source,
-                })),
-            };
-
-            const translatedBatch = await this.translate(batch, this.#config);
-            result[locale] = translatedBatch.entries;
-        }
-
-        return result;
-    }
-
-    /**
      * Sends a single translation batch to OpenAI and returns the raw JSON
      * response text.
      *
@@ -144,7 +119,7 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
      * @param batch - Translation batch
      * @returns Provider payload
      */
-    #buildBatchPayload(batch: TranslationBatch): FlatLocaleFiles {
+    #buildBatchPayload(batch: TranslationBatch): Record<string, FlatLocaleFile> {
         const localeEntries: FlatLocaleFile = {};
 
         for (const entry of batch.entries) {
