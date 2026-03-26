@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { OpenAI } from "openai";
 
 import { DEFAULT_OPENAI_MODEL, DEFAULT_PROVIDER_TEMPERATURE } from "../constants.js";
@@ -89,7 +91,7 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
         const approximateCharacterCount = this.#getBatchCharacterCount(batch);
 
         this.#logger.info(
-            `Preparing OpenAI translation request for locale "${batch.locale}" with ${batch.entries.length} entr${batch.entries.length === 1 ? "y" : "ies"} using model "${runtimeConfig.provider.model}". ApproxChars=${approximateCharacterCount}.`,
+            `Preparing OpenAI translation request for locale "${batch.locale}" with ${batch.entries.length} entr${batch.entries.length === 1 ? "y" : "ies"} using model "${runtimeConfig.provider.model || DEFAULT_OPENAI_MODEL}". ApproxChars=${approximateCharacterCount}.`,
         );
 
         const responseText = await this.#fetchBatchTranslations(batch, runtimeConfig);
@@ -208,6 +210,9 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
      * Sends a single translation batch to OpenAI and returns the raw JSON
      * response text.
      *
+     * This method also persists the exact outbound request body to a debug file
+     * so the request can be replayed with curl during timeout investigations.
+     *
      * @param batch - Translation batch
      * @param config - Resolved runtime configuration
      * @returns Raw JSON response text
@@ -224,27 +229,62 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
             `Sending OpenAI request for locale "${batch.locale}". systemPromptChars=${systemPrompt.length}, userPayloadChars=${userPayload.length}.`,
         );
 
-        const response = await this.#client.chat.completions.create({
+        const requestBody = {
             model,
             response_format: {
-                type: "json_object",
+                type: "json_object" as const,
             },
             messages: [
                 {
-                    role: "system",
+                    role: "system" as const,
                     content: systemPrompt,
                 },
                 {
-                    role: "user",
+                    role: "user" as const,
                     content: userPayload,
                 },
             ],
             temperature,
-        });
+        };
+
+        const debugRequestFilePath = this.#writeDebugRequestFile(batch.locale, requestBody);
+
+        this.#logger.info(`Wrote OpenAI debug request for locale "${batch.locale}" to ${debugRequestFilePath}.`);
+
+        const startedAt = Date.now();
+
+        const response = await this.#client.chat.completions.create(requestBody);
+
+        const durationMs = Date.now() - startedAt;
+
+        this.#logger.success(`OpenAI request for locale "${batch.locale}" completed in ${durationMs}ms.`);
 
         const content = response.choices[0]?.message?.content;
 
         return content || "{}";
+    }
+
+    /**
+     * Writes the exact outbound OpenAI request body to a local debug file.
+     *
+     * This makes it easy to replay the request with curl and distinguish
+     * SDK/runtime issues from payload-specific issues.
+     *
+     * @param locale - Batch locale
+     * @param requestBody - Exact OpenAI request body
+     * @returns Absolute debug file path
+     */
+    #writeDebugRequestFile(locale: string, requestBody: object): string {
+        const artifactsDirectoryPath = path.resolve("artifacts");
+        const filePath = path.join(artifactsDirectoryPath, `openai-request-${locale}.json`);
+
+        if (!fs.existsSync(artifactsDirectoryPath)) {
+            fs.mkdirSync(artifactsDirectoryPath, { recursive: true });
+        }
+
+        fs.writeFileSync(filePath, `${JSON.stringify(requestBody, null, 2)}\n`, "utf-8");
+
+        return filePath;
     }
 
     /**

@@ -1,7 +1,10 @@
 {
     "author": "Technance <dev@technance.io>",
+    "engines": {
+        "node": ">=24.14.0"
+    },
     "bin": {
-        "worphling": "dist/index.js"
+        "worphling": "dist/index.mjs"
     },
     "dependencies": {
         "@formatjs/icu-messageformat-parser": "catalog:",
@@ -15,13 +18,13 @@
         "@types/lodash-es": "catalog:",
         "@types/minimist": "catalog:",
         "@types/node": "catalog:",
-        "tsup": "catalog:",
+        "tsdown": "catalog:",
         "tsx": "catalog:",
         "typescript": "catalog:",
         "vitest": "catalog:"
     },
     "exports": {
-        ".": "./dist/index.js"
+        ".": "./dist/index.mjs"
     },
     "files": [
         "dist"
@@ -34,21 +37,19 @@
         "i18n"
     ],
     "license": "MIT",
-    "main": "dist/index.js",
+    "main": "dist/index.mjs",
     "name": "@technance/worphling",
     "scripts": {
-        "build": "tsup",
-        "build:dev": "tsup --watch",
+        "build": "tsdown",
+        "build:dev": "tsdown --watch",
         "dev": "tsx watch src/index.ts",
         "release": "pnpm build && npm publish",
-        "start": "node dist/index.js",
+        "start": "node dist/index.mjs",
         "test": "vitest run",
-        "test:watch": "vitest",
-        "test:integration": "vitest run tests/integration",
         "type-check": "tsc --noEmit",
         "prepublishOnly": "pnpm build"
     },
     "type": "module",
-    "types": "dist/index.d.ts",
+    "types": "dist/index.d.mts",
     "version": "2.0.0"
 }

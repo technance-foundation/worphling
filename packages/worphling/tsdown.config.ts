@@ -1,4 +1,4 @@
-import { defineConfig } from "tsup";
+import { defineConfig } from "tsdown";
 
 export default defineConfig({
     entry: ["src/cli/index.ts"],
@@ -10,8 +10,4 @@ export default defineConfig({
     minify: false,
     sourcemap: true,
     platform: "node",
-    target: "node16",
-    esbuildOptions(options) {
-        options.charset = "utf8";
-    },
 });
