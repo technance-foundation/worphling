@@ -1,36 +1,708 @@
 import type OpenAI from "openai";
 
+import type {
+    SupportedDetectionStrategy,
+    SupportedPluginName,
+    SupportedProviderName,
+    SupportedReportFormat,
+} from "./constants.js";
+
+/**
+ * Supported CLI command names.
+ *
+ * These commands are intentionally modeled up front so the runtime,
+ * configuration, and reporting layers can share a stable vocabulary.
+ */
+export type CommandName = "check" | "translate" | "fix" | "sync" | "report";
+
+/**
+ * Supported translation provider names.
+ */
+export type TranslationProviderName = SupportedProviderName;
+
+/**
+ * Supported plugin names.
+ */
+export type PluginName = SupportedPluginName;
+
+/**
+ * Supported source-change detection strategies.
+ */
+export type DetectionStrategy = SupportedDetectionStrategy;
+
+/**
+ * Supported report output formats.
+ */
+export type ReportFormat = SupportedReportFormat;
+
+/**
+ * JSON primitive values supported inside translation files.
+ */
+export type JsonPrimitive = string | number | boolean | null;
+
+/**
+ * Recursive JSON value type used for locale file contents.
+ */
+export type JsonValue = JsonPrimitive | JsonArray | JsonObject;
+
+/**
+ * Recursive JSON array type.
+ */
+export interface JsonArray extends Array<JsonValue> {}
+
+/**
+ * Recursive JSON object type.
+ */
+export interface JsonObject {
+    [key: string]: JsonValue;
+}
+
+/**
+ * Locale file represented as a nested JSON object.
+ *
+ * Translation source files are expected to be objects at the root.
+ */
+export type LocaleFile = JsonObject;
+
+/**
+ * Locale files grouped by locale code.
+ *
+ * Example:
+ * ```ts
+ * {
+ *     en: { app: { title: "Hello" } },
+ *     es: { app: { title: "Hola" } },
+ * }
+ * ```
+ */
+export type LocaleFiles = Record<string, LocaleFile>;
+
+/**
+ * Flat translation dictionary using dot-notated keys.
+ *
+ * Example:
+ * ```ts
+ * {
+ *     "app.title": "Hello",
+ *     "app.subtitle": "Welcome back",
+ * }
+ * ```
+ */
+export type FlatLocaleFile = Record<string, string>;
+
+/**
+ * Flat translation dictionaries grouped by locale code.
+ */
+export type FlatLocaleFiles = Record<string, FlatLocaleFile>;
+
+/**
+ * OpenAI provider configuration.
+ */
+export interface OpenAiProviderConfig {
+    /**
+     * Stable provider identifier.
+     */
+    name: "openai";
+
+    /**
+     * Provider API key.
+     */
+    apiKey: string;
+
+    /**
+     * Model used for translation generation.
+     *
+     * When omitted, the runtime may apply a default model.
+     */
+    model?: OpenAI.Chat.ChatModel;
+
+    /**
+     * Sampling temperature used for generation.
+     *
+     * Translation workflows should typically keep this at `0`.
+     */
+    temperature?: number;
+}
+
+/**
+ * Translation provider configuration.
+ *
+ * This union is intentionally structured for future provider expansion.
+ */
+export type TranslationProviderConfig = OpenAiProviderConfig;
+
+/**
+ * Plugin configuration.
+ *
+ * The plugin is responsible for syntax-aware translation handling, such as ICU,
+ * rich text tags, and other framework-specific conventions.
+ */
+export interface PluginConfig {
+    /**
+     * Plugin identifier.
+     */
+    name: PluginName;
+}
+
+/**
+ * Source-change detection configuration.
+ */
+export interface DetectionConfig {
+    /**
+     * Strategy used to determine which source keys changed.
+     */
+    strategy: DetectionStrategy;
+
+    /**
+     * Optional snapshot file path used by snapshot- or hash-based detection.
+     */
+    snapshotFile?: string;
+}
+
+/**
+ * Output formatting configuration for written locale files.
+ */
+export interface OutputConfig {
+    /**
+     * Whether object keys should be sorted recursively before writing.
+     */
+    sortKeys: boolean;
+
+    /**
+     * Number of spaces used when serializing JSON output.
+     */
+    preserveIndentation: number;
+
+    /**
+     * Whether written files should end with a trailing newline.
+     */
+    trailingNewline: boolean;
+}
+
+/**
+ * Validation configuration controlling structural and policy checks.
+ */
+export interface ValidationConfig {
+    /**
+     * Whether interpolation placeholders such as `{name}` must be preserved.
+     */
+    preservePlaceholders: boolean;
+
+    /**
+     * Whether ICU message syntax must be preserved and validated.
+     */
+    preserveIcuSyntax: boolean;
+
+    /**
+     * Whether HTML-like tags such as `<bold>` must be preserved.
+     */
+    preserveHtmlTags: boolean;
+
+    /**
+     * Whether extra keys in target locales should fail the run.
+     */
+    failOnExtraKeys: boolean;
+
+    /**
+     * Whether missing keys in target locales should fail the run.
+     */
+    failOnMissingKeys: boolean;
+
+    /**
+     * Whether modified source keys requiring retranslation should fail the run.
+     */
+    failOnModifiedSource: boolean;
+}
+
+/**
+ * Translation execution configuration.
+ */
+export interface TranslationConfig {
+    /**
+     * Maximum number of translation entries sent in a single batch.
+     */
+    batchSize: number;
+
+    /**
+     * Maximum retry attempts for transient provider failures.
+     */
+    maxRetries: number;
+
+    /**
+     * Maximum number of concurrent translation batches.
+     */
+    concurrency: number;
+
+    /**
+     * Whether translated text should attempt to stay close to the source length.
+     */
+    exactLength: boolean;
+
+    /**
+     * Optional path to a text file containing translation instructions, glossary
+     * rules, tone, or domain terminology.
+     */
+    contextFile?: string;
+}
+
+/**
+ * CI-specific runtime configuration.
+ */
+export interface CiConfig {
+    /**
+     * Whether the runtime is operating in CI mode.
+     */
+    mode: boolean;
+
+    /**
+     * Optional file path where a machine-readable report should be written.
+     */
+    reportFile?: string;
+
+    /**
+     * Whether the process should fail when files were changed or would change.
+     */
+    failOnChanges: boolean;
+
+    /**
+     * Whether warnings should cause the process to fail.
+     */
+    failOnWarnings: boolean;
+}
+
+/**
+ * Main runtime configuration for Worphling.
+ *
+ * This interface is intentionally aligned with the new v3 config format and is
+ * expected to be the single source of truth for configuration across the
+ * runtime, CLI, CI integration, and reporting layers.
+ */
 export interface Config {
-    service: {
-        name: "OpenAI";
-        apiKey: string;
-        model?: OpenAI.Chat.ChatModel;
-    };
-    source: {
-        file: string;
-        directory: string;
-    };
-    plugin: `${Plugin}`;
+    /**
+     * Locale used as the source of truth for all translations.
+     */
+    sourceLocale: string;
+
+    /**
+     * Directory containing all locale files.
+     */
+    localesDir: string;
+
+    /**
+     * Glob-like file pattern used to discover locale files.
+     *
+     * Example:
+     * - `*.json`
+     * - `*.jsonc`
+     */
+    filePattern: string;
+
+    /**
+     * Translation provider configuration.
+     */
+    provider: TranslationProviderConfig;
+
+    /**
+     * Syntax/plugin configuration.
+     */
+    plugin: PluginConfig;
+
+    /**
+     * Source-change detection configuration.
+     */
+    detection: DetectionConfig;
+
+    /**
+     * Output writing configuration.
+     */
+    output: OutputConfig;
+
+    /**
+     * Validation behavior configuration.
+     */
+    validation: ValidationConfig;
+
+    /**
+     * Translation execution configuration.
+     */
+    translation: TranslationConfig;
+
+    /**
+     * CI behavior configuration.
+     */
+    ci: CiConfig;
 }
 
-export interface Flags {
-    isTryingExactLengthEnabled: boolean;
-    isSortingEnabled: boolean;
+/**
+ * Normalized config after defaults have been applied.
+ *
+ * For now this is the same as {@link Config}, but keeping the alias makes the
+ * loading pipeline more expressive and gives us room to distinguish raw vs
+ * normalized config later without a breaking rename.
+ */
+export type ResolvedConfig = Config;
+
+/**
+ * CLI flags resolved from command-line arguments.
+ *
+ * These flags override or refine config-driven behavior for a single run.
+ */
+export interface CliFlags {
+    /**
+     * Command selected by the user.
+     */
+    command: CommandName;
+
+    /**
+     * Optional explicit config file path.
+     */
+    configPath?: string;
+
+    /**
+     * Whether the run should avoid writing files.
+     */
+    dryRun: boolean;
+
+    /**
+     * Whether the run is allowed to write files.
+     */
+    write: boolean;
+
+    /**
+     * Optional comma-separated locale filter resolved into an array.
+     */
+    locales?: Array<string>;
+
+    /**
+     * Optional report format requested by the caller.
+     */
+    reportFormat?: ReportFormat;
+
+    /**
+     * Optional explicit report output path.
+     */
+    reportFile?: string;
+
+    /**
+     * Whether CI mode should be forced for this run.
+     */
+    ci: boolean;
+
+    /**
+     * Whether the process should fail when changes are detected.
+     */
+    failOnChanges: boolean;
 }
 
-export type AppConfig = Config & {
-    flags: Flags;
-};
+/**
+ * Runtime config composed from the loaded config file plus CLI flags.
+ */
+export interface AppConfig {
+    /**
+     * Loaded and normalized config file.
+     */
+    config: ResolvedConfig;
 
-export enum Plugin {
-    NextIntl = "next-intl",
-    None = "none",
+    /**
+     * Parsed CLI flags for the current invocation.
+     */
+    flags: CliFlags;
 }
 
-export type LangFile = Record<string, any>;
+/**
+ * Category of detected locale issue.
+ */
+export type LocaleIssueType =
+    | "missing"
+    | "extra"
+    | "modified"
+    | "invalid-placeholder"
+    | "invalid-icu"
+    | "invalid-tag"
+    | "invalid-structure"
+    | "provider-error";
 
-export type LangFiles = Record<string, LangFile>;
+/**
+ * Severity level assigned to a detected issue.
+ */
+export type IssueSeverity = "error" | "warning" | "info";
 
-export type FlatLangFile = Record<string, string>;
+/**
+ * Structured issue emitted during analysis, validation, or translation.
+ */
+export interface LocaleIssue {
+    /**
+     * Stable issue type.
+     */
+    type: LocaleIssueType;
 
-export type FlatLangFiles = Record<string, FlatLangFile>;
+    /**
+     * Issue severity.
+     */
+    severity: IssueSeverity;
+
+    /**
+     * Locale affected by the issue.
+     */
+    locale: string;
+
+    /**
+     * Translation key affected by the issue.
+     */
+    key: string;
+
+    /**
+     * Human-readable issue message.
+     */
+    message: string;
+
+    /**
+     * Optional source value associated with the issue.
+     */
+    sourceValue?: string;
+
+    /**
+     * Optional target value associated with the issue.
+     */
+    targetValue?: string;
+}
+
+/**
+ * Diff result describing missing, extra, and modified keys across locales.
+ */
+export interface DiffResult {
+    /**
+     * Missing keys grouped by locale.
+     */
+    missing: FlatLocaleFiles;
+
+    /**
+     * Extra keys grouped by locale.
+     */
+    extra: FlatLocaleFiles;
+
+    /**
+     * Modified source-derived keys grouped by locale.
+     */
+    modified: FlatLocaleFiles;
+}
+
+/**
+ * Action planned by the engine before applying changes.
+ *
+ * Planning actions explicitly makes dry-runs, CI reports, and deterministic
+ * execution significantly easier to implement and test.
+ */
+export type PlanAction =
+    | {
+          type: "translate-missing";
+          locale: string;
+          entries: FlatLocaleFile;
+      }
+    | {
+          type: "retranslate-modified";
+          locale: string;
+          entries: FlatLocaleFile;
+      }
+    | {
+          type: "remove-extra-keys";
+          locale: string;
+          entries: FlatLocaleFile;
+      }
+    | {
+          type: "write-locale-file";
+          locale: string;
+      };
+
+/**
+ * Execution plan produced before translation or file writes occur.
+ */
+export interface Plan {
+    /**
+     * Ordered list of actions to execute.
+     */
+    actions: Array<PlanAction>;
+}
+
+/**
+ * Single translation entry sent to a translation provider.
+ */
+export interface TranslationEntry {
+    /**
+     * Dot-notated translation key.
+     */
+    key: string;
+
+    /**
+     * Source message to translate.
+     */
+    source: string;
+}
+
+/**
+ * Translation batch for a single locale.
+ */
+export interface TranslationBatch {
+    /**
+     * Target locale for the batch.
+     */
+    locale: string;
+
+    /**
+     * Entries to translate.
+     */
+    entries: Array<TranslationEntry>;
+}
+
+/**
+ * Result returned for a translated batch.
+ */
+export interface TranslationBatchResult {
+    /**
+     * Target locale for the batch.
+     */
+    locale: string;
+
+    /**
+     * Flat translated entries keyed by dot-notated translation key.
+     */
+    entries: FlatLocaleFile;
+}
+
+/**
+ * Contract for translation providers.
+ *
+ * Providers are intentionally decoupled from filesystem, diffing, and writing
+ * concerns so they can be tested and replaced independently.
+ */
+export interface TranslationProviderContract {
+    /**
+     * Stable provider identifier.
+     */
+    readonly name: TranslationProviderName;
+
+    /**
+     * Translates a batch of source entries into the requested locale.
+     *
+     * @param batch - Translation batch to process
+     * @param config - Fully resolved runtime config
+     * @returns Translated batch result
+     */
+    translate(batch: TranslationBatch, config: ResolvedConfig): Promise<TranslationBatchResult>;
+}
+
+/**
+ * Snapshot file contents for hash-based or snapshot-based source tracking.
+ */
+export interface SnapshotFile {
+    /**
+     * Source locale the snapshot belongs to.
+     */
+    sourceLocale: string;
+
+    /**
+     * Hashes keyed by dot-notated source translation key.
+     */
+    entries: Record<string, string>;
+}
+
+/**
+ * Summary of a completed run.
+ */
+export interface RunSummary {
+    /**
+     * Command executed for the run.
+     */
+    command: CommandName;
+
+    /**
+     * Source locale used as the translation source of truth.
+     */
+    sourceLocale: string;
+
+    /**
+     * Target locales included in the run.
+     */
+    targetLocales: Array<string>;
+
+    /**
+     * Total number of missing keys detected.
+     */
+    missingCount: number;
+
+    /**
+     * Total number of extra keys detected.
+     */
+    extraCount: number;
+
+    /**
+     * Total number of modified keys detected.
+     */
+    modifiedCount: number;
+
+    /**
+     * Total number of keys translated during the run.
+     */
+    translatedCount: number;
+
+    /**
+     * Total number of files written during the run.
+     */
+    writtenFileCount: number;
+
+    /**
+     * Whether the run changed files or would change files in dry-run mode.
+     */
+    hasChanges: boolean;
+}
+
+/**
+ * Structured run report used by console output, CI output, and serialized
+ * report files.
+ */
+export interface RunReport {
+    /**
+     * Top-level summary of the run.
+     */
+    summary: RunSummary;
+
+    /**
+     * Structured issues detected during the run.
+     */
+    issues: Array<LocaleIssue>;
+}
+
+/**
+ * Stable process exit codes used by the CLI.
+ */
+export enum ExitCode {
+    /**
+     * Command completed successfully.
+     */
+    Success = 0,
+
+    /**
+     * Generic runtime failure.
+     */
+    Error = 1,
+
+    /**
+     * Configuration file could not be found, loaded, or validated.
+     */
+    ConfigError = 2,
+
+    /**
+     * Validation failed.
+     */
+    ValidationError = 3,
+
+    /**
+     * Changes were detected and configured policy required failure.
+     */
+    ChangesDetected = 4,
+
+    /**
+     * Translation provider failed.
+     */
+    ProviderError = 5,
+}
