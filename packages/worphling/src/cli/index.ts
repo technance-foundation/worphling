@@ -19,7 +19,7 @@ export * from "../types.js";
  * - constructing the runtime app
  * - mapping domain failures to stable process exit codes
  */
-(async () => {
+async function runCli() {
     try {
         const cli = new Cli();
         const configLoader = new ConfigLoader(cli.flags.configPath);
@@ -43,7 +43,12 @@ export * from "../types.js";
 
         process.exit(statusCode);
     }
-})();
+}
+
+// Only run CLI when executed directly, not when imported
+if (import.meta.url === `file://${process.argv[1]}`) {
+    runCli();
+}
 
 /**
  * Resolves a stable process exit code for a runtime error.

@@ -66,12 +66,19 @@ export class Cli {
         const command = this.#resolveCommand(args._[0]);
         const locales = this.#parseLocales(args["locales"]);
         const reportFormat = this.#parseReportFormat(args["report-format"]);
+        const dryRun = Boolean(args["dry-run"]);
+        const write = Boolean(args["write"]);
+
+        // Validate mutually exclusive flags
+        if (dryRun && write) {
+            throw new Error("The --dry-run and --write flags are mutually exclusive and cannot be used together.");
+        }
 
         return {
             command,
             configPath: this.#getOptionalString(args["config"]),
-            dryRun: Boolean(args["dry-run"]),
-            write: Boolean(args["write"]),
+            dryRun,
+            write,
             locales,
             reportFormat,
             reportFile: this.#getOptionalString(args["report-file"]),

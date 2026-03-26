@@ -108,6 +108,12 @@ export class ConfigLoader {
 
             this.#validate(rawConfig);
 
+            // Resolve relative localesDir against config file's directory
+            const configDir = path.dirname(configFilePath);
+            if (rawConfig.localesDir && !path.isAbsolute(rawConfig.localesDir)) {
+                rawConfig.localesDir = path.normalize(path.join(configDir, rawConfig.localesDir));
+            }
+
             const resolvedConfig = this.#normalize(rawConfig);
             this.#config = resolvedConfig;
 
@@ -179,6 +185,10 @@ export class ConfigLoader {
         if (!this.#isPlainObject(config.provider)) {
             throw new ConfigValidationError('Invalid configuration: Missing required object "provider".');
         }
+
+        // Apply defaults to nested objects before validation
+        config.plugin = config.plugin || {};
+        config.detection = config.detection || {};
 
         if (!this.#isPlainObject(config.plugin)) {
             throw new ConfigValidationError('Invalid configuration: Missing required object "plugin".');
@@ -302,12 +312,18 @@ export class ConfigLoader {
     }
 
     #validatePlugin(plugin: Record<string, unknown>): void {
+        // Apply default plugin name before validation
+        plugin.name = plugin.name ?? DEFAULT_PLUGIN_NAME;
+
         if (!this.#isSupportedPluginName(plugin.name)) {
             throw new ConfigValidationError(`Invalid configuration: Unsupported plugin name "${String(plugin.name)}".`);
         }
     }
 
     #validateDetection(detection: Record<string, unknown>): void {
+        // Apply default detection strategy before validation
+        detection.strategy = detection.strategy ?? DEFAULT_DETECTION_STRATEGY;
+
         if (!this.#isSupportedDetectionStrategy(detection.strategy)) {
             throw new ConfigValidationError(
                 `Invalid configuration: Unsupported detection strategy "${String(detection.strategy)}".`,

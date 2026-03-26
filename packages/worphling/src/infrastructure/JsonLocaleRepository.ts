@@ -91,11 +91,19 @@ export class JsonLocaleRepository {
 
             try {
                 const content = fs.readFileSync(filePath, "utf-8");
-                const parsed = JSON.parse(content) as LocaleFile;
-                const locale = this.#extractLanguageKey(filePath);
+                const parsed = JSON.parse(content);
 
-                result[locale] = parsed;
+                // Validate that parsed JSON root is a plain object
+                if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+                    throw new LocaleFileReadError(filePath, "locale root must be an object");
+                }
+
+                const locale = this.#extractLanguageKey(filePath);
+                result[locale] = parsed as LocaleFile;
             } catch (error) {
+                if (error instanceof LocaleFileReadError) {
+                    throw error;
+                }
                 const reason = error instanceof Error ? error.message : String(error);
                 throw new LocaleFileReadError(filePath, reason);
             }

@@ -72,8 +72,10 @@ export class App {
         const allTargetLocaleFiles = omit(allLocaleFiles, sourceLocale) as LocaleFiles;
         const targetLocaleFiles = this.#filterLocales(allTargetLocaleFiles);
 
+        const removedExtraKeys = this.#countRemovedExtraKeys(sourceLocaleFile, targetLocaleFiles);
         const cleanedTargetLocaleFiles = this.#localeDiffCalculator.removeAllExtraKeys(sourceLocaleFile, targetLocaleFiles);
-        const snapshot = this.#snapshotRepository.load(runtimeConfig.detection.snapshotFile);
+        const snapshotFile = this.#snapshotRepository.load(runtimeConfig.detection.snapshotFile);
+        const snapshot = snapshotFile?.entries || null;
 
         const missingKeys = this.#localeDiffCalculator.findMissingKeys(sourceLocaleFile, cleanedTargetLocaleFiles);
         const modifiedKeys = this.#buildModifiedKeysMap(sourceLocaleFile, cleanedTargetLocaleFiles, snapshot);
@@ -90,7 +92,9 @@ export class App {
             console.log(ANSI_COLORS.yellow, `Found ${modifiedCount} modified keys that need retranslation.`);
         }
 
-        if (!Object.keys(keysToTranslate).length) {
+        const hasChanges = Object.keys(keysToTranslate).length > 0 || removedExtraKeys > 0;
+
+        if (!hasChanges) {
             console.log(ANSI_COLORS.green, "All target languages are already translated and up to date.");
 
             if (runtimeConfig.output.sortKeys) {
@@ -104,7 +108,7 @@ export class App {
                 });
             }
 
-            if (!snapshot && runtimeConfig.detection.snapshotFile && !flags.dryRun) {
+            if (!snapshotFile && runtimeConfig.detection.snapshotFile && !flags.dryRun) {
                 this.#snapshotRepository.save(runtimeConfig.detection.snapshotFile, sourceLocale, sourceLocaleFile);
             }
 
@@ -211,5 +215,29 @@ export class App {
      */
     #countFlatLocaleEntries(localeFiles: FlatLocaleFiles): number {
         return Object.values(localeFiles).reduce((total, entries) => total + Object.keys(entries).length, 0);
+    }
+
+    /**
+     * Counts the total number of extra keys that would be removed from target locales.
+     *
+     * @param sourceLocaleFile - Source locale file
+     * @param targetLocaleFiles - Target locale files
+     * @returns Total number of extra keys
+     */
+    #countRemovedExtraKeys(sourceLocaleFile: LocaleFile, targetLocaleFiles: LocaleFiles): number {
+        const flatSource = this.#localeDiffCalculator.getAllSourceKeys(sourceLocaleFile);
+        let totalKeysToRemove = 0;
+
+        for (const target of Object.values(targetLocaleFiles)) {
+            const flatTarget = this.#localeDiffCalculator.getAllSourceKeys(target);
+
+            for (const key of Object.keys(flatTarget)) {
+                if (!(key in flatSource)) {
+                    totalKeysToRemove += 1;
+                }
+            }
+        }
+
+        return totalKeysToRemove;
     }
 }

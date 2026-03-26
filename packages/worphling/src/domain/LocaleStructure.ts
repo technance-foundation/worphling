@@ -18,6 +18,7 @@ export class LocaleStructure {
      * @param currentPath - Current dot-notated path
      * @param result - Mutable flatten result
      * @returns Flattened locale file
+     * @throws {Error} When a non-string, non-object leaf value is encountered
      */
     flatten(value: LocaleFile, currentPath: string = "", result: FlatLocaleFile = {}): FlatLocaleFile {
         for (const [key, entryValue] of Object.entries(value)) {
@@ -30,7 +31,14 @@ export class LocaleStructure {
 
             if (this.#isPlainObject(entryValue)) {
                 this.flatten(entryValue as LocaleFile, nextPath, result);
+                continue;
             }
+
+            // Fail fast on invalid leaf values
+            const valueType = Array.isArray(entryValue) ? "array" : typeof entryValue;
+            throw new Error(
+                `Invalid locale file structure at path "${nextPath}": expected string or object, but got ${valueType} (${JSON.stringify(entryValue)})`,
+            );
         }
 
         return result;
@@ -43,7 +51,7 @@ export class LocaleStructure {
      * @returns Nested locale file
      */
     unflatten(flatLocaleFile: FlatLocaleFile): LocaleFile {
-        const result: LocaleFile = {};
+        const result: LocaleFile = Object.create(null);
 
         for (const [path, value] of Object.entries(flatLocaleFile)) {
             const keys = path.split(".");
@@ -56,7 +64,7 @@ export class LocaleStructure {
                 }
 
                 if (!this.#isPlainObject(current[key])) {
-                    current[key] = {};
+                    current[key] = Object.create(null);
                 }
 
                 current = current[key] as Record<string, unknown>;

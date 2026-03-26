@@ -162,25 +162,40 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
      * @param responseText - Raw response text returned by the provider
      * @param batch - Original translation batch
      * @returns Parsed translated entries
-     * @throws {ProviderResponseValidationError} When the response is not valid JSON
+     * @throws {ProviderResponseValidationError} When the response is invalid or incomplete
      */
     #parseBatchTranslations(responseText: string, batch: TranslationBatch): FlatLocaleFile {
         try {
             const parsedResponse = JSON.parse(responseText) as Record<string, unknown>;
             const localeEntries = parsedResponse[batch.locale];
 
+            // Validate that locale block exists and is an object
             if (!this.#isFlatLocaleFile(localeEntries)) {
-                return {};
+                throw new ProviderResponseValidationError(
+                    `Provider response missing or invalid locale block for "${batch.locale}"`,
+                );
             }
 
             const result: FlatLocaleFile = {};
 
+            // Validate that every requested key has a non-empty string value
             for (const entry of batch.entries) {
-                result[entry.key] = localeEntries[entry.key] || "";
+                const translatedValue = localeEntries[entry.key];
+
+                if (typeof translatedValue !== "string" || translatedValue === "") {
+                    throw new ProviderResponseValidationError(
+                        `Provider response missing or invalid translation for key "${entry.key}" in locale "${batch.locale}"`,
+                    );
+                }
+
+                result[entry.key] = translatedValue;
             }
 
             return result;
         } catch (error) {
+            if (error instanceof ProviderResponseValidationError) {
+                throw error;
+            }
             throw new ProviderResponseValidationError(
                 `Translation response was not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
             );

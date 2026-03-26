@@ -31,10 +31,10 @@ export class SnapshotRepository {
      * the method returns `null`.
      *
      * @param snapshotFilePath - Snapshot file path
-     * @returns Flattened source snapshot entries, or `null`
-     * @throws {SnapshotStorageError} When the snapshot exists but cannot be read
+     * @returns Full snapshot file with sourceLocale and entries, or `null`
+     * @throws {SnapshotStorageError} When the snapshot exists but cannot be read or is invalid
      */
-    load(snapshotFilePath?: string): Record<string, string> | null {
+    load(snapshotFilePath?: string): SnapshotFile | null {
         if (!snapshotFilePath) {
             return null;
         }
@@ -47,10 +47,38 @@ export class SnapshotRepository {
 
         try {
             const content = fs.readFileSync(resolvedSnapshotPath, "utf-8");
-            const parsedSnapshot = JSON.parse(content) as SnapshotFile;
+            const parsedSnapshot = JSON.parse(content);
 
-            return parsedSnapshot.entries;
+            // Validate snapshot structure
+            if (
+                typeof parsedSnapshot !== "object" ||
+                parsedSnapshot === null ||
+                typeof parsedSnapshot.sourceLocale !== "string" ||
+                typeof parsedSnapshot.entries !== "object" ||
+                parsedSnapshot.entries === null ||
+                Array.isArray(parsedSnapshot.entries)
+            ) {
+                throw new SnapshotStorageError(
+                    resolvedSnapshotPath,
+                    "Invalid snapshot format: must contain sourceLocale (string) and entries (object)",
+                );
+            }
+
+            // Validate entries are Record<string, string>
+            for (const [key, value] of Object.entries(parsedSnapshot.entries)) {
+                if (typeof value !== "string") {
+                    throw new SnapshotStorageError(
+                        resolvedSnapshotPath,
+                        `Invalid snapshot format: entry "${key}" must be a string, got ${typeof value}`,
+                    );
+                }
+            }
+
+            return parsedSnapshot as SnapshotFile;
         } catch (error) {
+            if (error instanceof SnapshotStorageError) {
+                throw error;
+            }
             const reason = error instanceof Error ? error.message : String(error);
             throw new SnapshotStorageError(resolvedSnapshotPath, reason);
         }

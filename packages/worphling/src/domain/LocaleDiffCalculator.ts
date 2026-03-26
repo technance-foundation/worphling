@@ -141,7 +141,8 @@ export class LocaleDiffCalculator {
      * @returns Updated target locale files
      */
     updateTargetLocales(targetLocales: LocaleFiles, translatedKeys: FlatLocaleFiles): LocaleFiles {
-        const updatedLocales: LocaleFiles = {};
+        // Start with a shallow copy of all existing target locales
+        const updatedLocales: LocaleFiles = { ...targetLocales };
 
         for (const [locale, flatTranslatedKeys] of Object.entries(translatedKeys)) {
             const targetLocale = targetLocales[locale] || {};
