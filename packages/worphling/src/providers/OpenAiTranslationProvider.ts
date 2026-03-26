@@ -4,7 +4,6 @@ import { DEFAULT_OPENAI_MODEL, DEFAULT_PROVIDER_TEMPERATURE } from "../constants
 import { ProviderResponseValidationError } from "../errors.js";
 import type {
     FlatLocaleFile,
-    PluginName,
     ResolvedConfig,
     TranslationBatch,
     TranslationBatchResult,
@@ -94,7 +93,6 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
      * @returns Raw JSON response text
      */
     async #fetchBatchTranslations(batch: TranslationBatch, config: ResolvedConfig): Promise<string> {
-        const pluginName = config.plugin.name;
         const exactLength = config.translation.exactLength;
         const model = config.provider.model || DEFAULT_OPENAI_MODEL;
         const temperature = config.provider.temperature ?? DEFAULT_PROVIDER_TEMPERATURE;
@@ -108,7 +106,7 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
             messages: [
                 {
                     role: "system",
-                    content: this.#buildSystemPrompt(pluginName, exactLength),
+                    content: this.#buildSystemPrompt(exactLength, this.#contextInstructions),
                 },
                 {
                     role: "user",
@@ -177,23 +175,28 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
     /**
      * Builds the system prompt used for translation generation.
      *
-     * @param pluginName - Active plugin name
+     * Worphling treats ICU as the default message model. Plugins only add
+     * framework-specific instructions on top of that baseline.
+     *
      * @param exactLength - Whether exact-length guidance is enabled
+     * @param contextInstructions - Optional extra translation instructions
      * @returns System prompt
      */
-    #buildSystemPrompt(pluginName: PluginName, exactLength: boolean): string {
+    #buildSystemPrompt(exactLength: boolean, contextInstructions?: string): string {
         const promptContext = this.#plugin.getPromptContext();
 
         return [
             "You are a translation assistant.",
+            "The project uses ICU message syntax as the default translation format.",
             "Translate the provided keys and texts into their specified target languages.",
             "Always respond with valid JSON matching the input structure exactly.",
             "Do not wrap the response in a ```json code block.",
-            `Active plugin: ${pluginName}.`,
-            "Preserve placeholders, ICU syntax, and tags whenever present.",
+            "Preserve ICU message structure exactly when present.",
+            "Preserve placeholders exactly when present.",
+            "Preserve HTML-like or rich-text tags exactly when present.",
             ...promptContext.additionalInstructions,
             exactLength ? "Translated responses must not exceed the length of their input." : undefined,
-            this.#contextInstructions ? `Additional translation instructions:\n${this.#contextInstructions}` : undefined,
+            contextInstructions ? `Additional translation instructions:\n${contextInstructions}` : undefined,
             `Example input: ${promptContext.exampleInput}`,
             `Example output: ${promptContext.exampleOutput}`,
         ]

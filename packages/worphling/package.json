@@ -31,7 +31,7 @@
         "localization",
         "i18n"
     ],
-    "license": "UNLICENSED",
+    "license": "MIT",
     "main": "dist/index.js",
     "name": "@technance/worphling",
     "scripts": {

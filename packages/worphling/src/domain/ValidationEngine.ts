@@ -37,6 +37,9 @@ interface ValidationEngineInput {
  * - validating placeholder preservation
  * - validating ICU structure preservation
  * - validating HTML-like tag preservation
+ *
+ * ICU-aware validation is considered core Worphling behavior. Plugins only add
+ * framework-specific validation overrides on top of the base config.
  */
 export class ValidationEngine {
     /**
@@ -68,7 +71,10 @@ export class ValidationEngine {
      */
     validate(input: ValidationEngineInput): Array<LocaleIssue> {
         const issues: Array<LocaleIssue> = [];
-        const effectiveValidationConfig = this.#plugin.resolveValidationConfig(input.validationConfig);
+        const effectiveValidationConfig: ValidationConfig = {
+            ...input.validationConfig,
+            ...this.#plugin.getValidationOverrides(),
+        };
         const flatSourceLocaleFile = this.#localeStructure.flatten(input.sourceLocaleFile);
 
         issues.push(

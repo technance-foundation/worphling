@@ -2,7 +2,8 @@ import { EXAMPLE_INPUT, EXAMPLE_OUTPUT } from "../core/examples.js";
 import type { TranslationPluginContract, TranslationPluginPromptContext, ValidationConfig } from "../types.js";
 
 /**
- * Default translation plugin with no framework-specific runtime behavior.
+ * Default translation plugin for plain ICU-based workflows without
+ * framework-specific conventions.
  */
 export class NoOpTranslationPlugin implements TranslationPluginContract {
     /**
@@ -24,12 +25,14 @@ export class NoOpTranslationPlugin implements TranslationPluginContract {
     }
 
     /**
-     * Resolves effective validation config for the plugin.
+     * Returns framework-specific validation overrides.
      *
-     * @param config - Base validation config
-     * @returns Effective validation config
+     * The default plugin does not strengthen validation beyond the core ICU
+     * behavior configured by the user.
+     *
+     * @returns Empty validation overrides
      */
-    resolveValidationConfig(config: ValidationConfig): ValidationConfig {
-        return config;
+    getValidationOverrides(): Partial<ValidationConfig> {
+        return {};
     }
 }

@@ -604,7 +604,9 @@ export interface TranslationPluginPromptContext {
 /**
  * Contract for translation plugins.
  *
- * Plugins influence translation prompting and effective validation behavior.
+ * ICU remains the core message model of Worphling. Plugins only add
+ * framework-specific prompting and validation adjustments on top of that core
+ * behavior.
  */
 export interface TranslationPluginContract {
     /**
@@ -620,14 +622,15 @@ export interface TranslationPluginContract {
     getPromptContext(): TranslationPluginPromptContext;
 
     /**
-     * Resolves the effective validation config for the plugin.
+     * Returns framework-specific validation overrides.
      *
-     * Plugins may strengthen validation behavior when their syntax requires it.
+     * These overrides are merged on top of the user-provided validation config.
+     * ICU and placeholder preservation are considered core behavior and should
+     * not be modeled as plugin-specific concerns.
      *
-     * @param config - Base validation config
-     * @returns Effective validation config
+     * @returns Partial validation config overrides
      */
-    resolveValidationConfig(config: ValidationConfig): ValidationConfig;
+    getValidationOverrides(): Partial<ValidationConfig>;
 }
 
 /**
