@@ -13,7 +13,7 @@ import type {
     PlanAction,
     ReportFormat,
     RunReport,
-    TranslationProviderContract,
+    TranslationPluginContract,
 } from "../types.js";
 import { ExitCode } from "../types.js";
 
@@ -21,6 +21,7 @@ import { RunConsoleReporter } from "./RunConsoleReporter.js";
 import { RunPlanner } from "./RunPlanner.js";
 import { RunReporter } from "./RunReporter.js";
 import { TranslationExecutor } from "./TranslationExecutor.js";
+
 /**
  * Main Worphling application runtime.
  *
@@ -65,9 +66,26 @@ export class App {
     #runPlanner: RunPlanner;
 
     /**
+     * Active translation plugin.
+     *
+     * This is resolved eagerly because validation behavior may depend on the
+     * selected plugin even when no translation work is needed.
+     */
+    #plugin: TranslationPluginContract;
+
+    /**
      * Validation engine used to collect structured validation issues.
      */
     #validationEngine: ValidationEngine;
+
+    /**
+     * Translation executor used for batching, retries, concurrency, and
+     * deterministic merge behavior.
+     *
+     * This is initialized lazily only when the execution plan contains
+     * translation actions.
+     */
+    #translationExecutor: TranslationExecutor | null;
 
     /**
      * Human-facing console reporter for runtime logs.
@@ -85,12 +103,6 @@ export class App {
     #runReportRepository: RunReportRepository;
 
     /**
-     * Translation executor used for batching, retries, concurrency, and
-     * deterministic merge behavior.
-     */
-    #translationExecutor: TranslationExecutor;
-
-    /**
      * Creates a new Worphling runtime application.
      *
      * @param config - Runtime config and CLI flags
@@ -98,16 +110,12 @@ export class App {
     constructor(config: AppConfig) {
         const localeStructure = new LocaleStructure();
         const localeDiffCalculator = new LocaleDiffCalculator(localeStructure);
-        const plugin = new TranslationPluginRegistry().resolve(config.config.plugin.name);
         const logger = config.logger || new ConsoleLogger();
-        const translationProvider: TranslationProviderContract = new TranslationProviderFactory().create(
-            config.config,
-            plugin,
-            logger,
-        );
+        const plugin = new TranslationPluginRegistry().resolve(config.config.plugin.name);
 
         this.#config = config;
         this.#logger = logger;
+        this.#plugin = plugin;
         this.#localeRepository = new JsonLocaleRepository(
             config.config.localesDir,
             config.config.filePattern,
@@ -121,12 +129,7 @@ export class App {
         this.#runConsoleReporter = new RunConsoleReporter(logger);
         this.#runReporter = new RunReporter();
         this.#runReportRepository = new RunReportRepository();
-        this.#translationExecutor = new TranslationExecutor(
-            translationProvider,
-            config.config.translation,
-            config.config,
-            logger,
-        );
+        this.#translationExecutor = null;
     }
 
     /**
@@ -162,6 +165,7 @@ export class App {
         );
         const plan = this.#runPlanner.createPlan(diffResult, flags.command);
         const executionPolicy = this.#resolveExecutionPolicy(ciMode);
+        const requiresTranslation = this.#planRequiresTranslation(plan.actions);
 
         this.#runConsoleReporter.logDetectedChanges(diffResult);
         this.#runConsoleReporter.logExecutionMode(executionPolicy, ciMode);
@@ -174,14 +178,17 @@ export class App {
 
         if (executionPolicy.executePlan && plan.actions.length > 0) {
             try {
-                translatedKeys = await this.#translatePlannedEntries(plan.actions);
-                translatedCount = this.#countFlatLocaleEntries(translatedKeys);
+                if (requiresTranslation) {
+                    this.#initializeTranslationExecutor();
+                    translatedKeys = await this.#translatePlannedEntries(plan.actions);
+                    translatedCount = this.#countFlatLocaleEntries(translatedKeys);
 
-                if (translatedCount > 0) {
-                    updatedTargetLocaleFiles = this.#localeDiffCalculator.updateTargetLocales(
-                        updatedTargetLocaleFiles,
-                        translatedKeys,
-                    );
+                    if (translatedCount > 0) {
+                        updatedTargetLocaleFiles = this.#localeDiffCalculator.updateTargetLocales(
+                            updatedTargetLocaleFiles,
+                            translatedKeys,
+                        );
+                    }
                 }
 
                 updatedTargetLocaleFiles = this.#applyPlannedExtraKeyRemovals(plan.actions, updatedTargetLocaleFiles);
@@ -246,7 +253,7 @@ export class App {
 
         this.#emitReport(report, ciMode);
 
-        return this.#resolveExitCode(report);
+        return this.#resolveExitCode(report, ciMode);
     }
 
     /**
@@ -326,7 +333,43 @@ export class App {
      * @returns Translated flat locale entries grouped by locale
      */
     async #translatePlannedEntries(actions: Array<PlanAction>): Promise<FlatLocaleFiles> {
+        if (!this.#translationExecutor) {
+            throw new Error("Translation executor was not initialized.");
+        }
+
         return this.#translationExecutor.execute(actions);
+    }
+
+    /**
+     * Returns whether the current plan includes translation work.
+     *
+     * @param actions - Ordered plan actions
+     * @returns Whether translation is required
+     */
+    #planRequiresTranslation(actions: Array<PlanAction>): boolean {
+        return actions.some((action) => action.type === "translate-missing" || action.type === "retranslate-modified");
+    }
+
+    /**
+     * Lazily initializes the translation executor.
+     *
+     * Provider setup is deferred until translation work is actually required so
+     * commands such as `check`, `report`, and pure cleanup runs do not require a
+     * provider configuration or API key.
+     */
+    #initializeTranslationExecutor(): void {
+        if (this.#translationExecutor) {
+            return;
+        }
+
+        const translationProvider = new TranslationProviderFactory().create(this.#config.config, this.#plugin, this.#logger);
+
+        this.#translationExecutor = new TranslationExecutor(
+            translationProvider,
+            this.#config.config.translation,
+            this.#config.config,
+            this.#logger,
+        );
     }
 
     /**
@@ -434,12 +477,17 @@ export class App {
      * Resolves the final process exit code from the generated report and the
      * active policy flags.
      *
+     * CI-specific fail policies are only applied when CI mode is enabled.
+     *
      * @param report - Structured run report
+     * @param ciMode - Whether CI mode is active
      * @returns Process exit code
      */
-    #resolveExitCode(report: RunReport): ExitCode {
+    #resolveExitCode(report: RunReport, ciMode: boolean): ExitCode {
         const flags = this.#config.flags;
         const runtimeConfig = this.#config.config;
+        const failOnWarnings = flags.failOnWarnings || (ciMode && runtimeConfig.ci.failOnWarnings);
+        const failOnChanges = flags.failOnChanges || (ciMode && runtimeConfig.ci.failOnChanges);
 
         if (report.issues.some((issue) => issue.type === "provider-error")) {
             return ExitCode.ProviderError;
@@ -449,11 +497,11 @@ export class App {
             return ExitCode.ValidationError;
         }
 
-        if ((flags.failOnWarnings || runtimeConfig.ci.failOnWarnings) && this.#hasWarningIssues(report)) {
+        if (failOnWarnings && this.#hasWarningIssues(report)) {
             return ExitCode.ValidationError;
         }
 
-        if (report.summary.hasChanges && (flags.failOnChanges || runtimeConfig.ci.failOnChanges)) {
+        if (failOnChanges && report.summary.hasChanges) {
             return ExitCode.ChangesDetected;
         }
 
