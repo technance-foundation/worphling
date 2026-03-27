@@ -193,7 +193,7 @@ export class App {
                     writtenFileCount = Object.keys(localeFilesToWrite).length;
                 }
 
-                if (shouldBootstrapSnapshot || this.#shouldSaveSnapshot(plan.actions, snapshot)) {
+                if (executionPolicy.writeFiles && (snapshot === null || this.#shouldSaveSnapshot(plan.actions, snapshot))) {
                     this.#snapshotRepository.save(runtimeConfig.snapshot.file, sourceLocale, sourceLocaleFile);
                 }
             } catch (error) {
@@ -417,27 +417,26 @@ export class App {
     /**
      * Returns whether the source snapshot should be updated after execution.
      *
-     * Snapshot persistence defines the "baseline" for future modified-key detection.
+     * Snapshot persistence defines the baseline for future modified-key detection.
      *
-     * The snapshot is updated only when the run brings target locales into alignment
-     * with the current source locale, or when initializing the baseline for the
-     * first time.
+     * This helper only decides whether an action-based write should advance the
+     * snapshot. The caller is still responsible for enforcing write-mode guards
+     * and zero-action bootstrap behavior.
      *
      * Snapshot is saved when:
      * - missing keys were translated (`translate-missing`)
      * - modified keys were retranslated (`retranslate-modified`)
-     *
-     * Snapshot is also saved when:
-     * - no previous snapshot exists AND extra keys were removed (`remove-extra-keys`)
-     *   (bootstrap case to establish an initial baseline)
+     * - no previous snapshot exists and extra keys were removed during initial
+     *   bootstrap (`remove-extra-keys`)
      *
      * Snapshot is NOT saved when:
      * - only extra keys were removed and a snapshot already exists
-     *   (to avoid advancing the baseline without updating stale translations)
+     *
+     * Snapshot must never be saved in non-mutating modes such as CI or dry-run.
      *
      * @param actions - Ordered plan actions
-     * @param snapshot - Previously loaded snapshot (or null if none exists)
-     * @returns Whether the snapshot should be saved
+     * @param snapshot - Previously loaded snapshot, or null when none exists
+     * @returns Whether the snapshot should be saved after a mutating run
      */
     #shouldSaveSnapshot(actions: Array<PlanAction>, snapshot: Record<string, string> | null): boolean {
         const hasTranslationWork = actions.some(
