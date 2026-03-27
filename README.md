@@ -51,10 +51,11 @@ Most teams use Worphling for this workflow:
 
 1. A source locale such as `en` is the source of truth
 2. Developers add or change source messages
-3. Worphling detects what changed
-4. Worphling translates missing or outdated entries with AI
-5. Worphling removes stale keys
-6. CI verifies that everything stays consistent
+3. Worphling compares the current source locale against its stored snapshot
+4. Worphling detects missing, outdated, and extra entries
+5. Worphling translates missing or outdated entries with AI
+6. Worphling removes stale keys
+7. CI verifies that everything stays consistent
 
 ---
 
@@ -139,7 +140,7 @@ If you want one command that keeps locale files healthy, use `sync`.
 Generate a standalone report.
 
 ```bash
-worphling report --report-file ./artifacts/worphling-report.md
+worphling report --report-file ./.worphling/worphling-report.md
 ```
 
 Useful for:
@@ -181,7 +182,7 @@ CI mode is designed to be non-mutating and deterministic.
 Write a report file.
 
 ```bash
-worphling check --report-file ./artifacts/report.json
+worphling check --report-file ./.worphling/report.json
 ```
 
 Supported output:
@@ -257,9 +258,8 @@ Example config:
     "plugin": {
         "name": "none"
     },
-    "detection": {
-        "strategy": "snapshot",
-        "snapshotFile": "./.worphling-snapshot.json"
+    "snapshot": {
+        "file": "./.worphling/.worphling-snapshot.json"
     },
     "output": {
         "sortKeys": true,
@@ -283,12 +283,32 @@ Example config:
     },
     "ci": {
         "mode": false,
-        "reportFile": "./artifacts/worphling-report.json",
+        "reportFile": "./.worphling/worphling-report.json",
         "failOnChanges": false,
         "failOnWarnings": false
     }
 }
 ```
+
+---
+
+## Snapshot State
+
+Worphling uses a required snapshot file to detect when source messages have changed.
+
+This snapshot is part of Worphling's normal operation and should be committed to version control, similar to a lockfile.
+
+Example:
+
+```json
+{
+    "snapshot": {
+        "file": "./.worphling/.worphling-snapshot.json"
+    }
+}
+```
+
+The snapshot stores flattened source-locale values and allows Worphling to determine when existing translations need retranslation.
 
 ---
 
@@ -316,7 +336,7 @@ Today, the main provider is OpenAI.
 When you run `translate` or `sync`, Worphling will:
 
 - collect missing keys
-- collect keys that need retranslation
+- collect keys that need retranslation based on the source snapshot
 - batch requests
 - execute them with bounded concurrency
 - retry failures
@@ -429,54 +449,6 @@ Example:
 
 ---
 
-## Detection Strategies
-
-### `snapshot`
-
-Stores source values and compares future runs against them.
-
-```json
-{
-    "detection": {
-        "strategy": "snapshot",
-        "snapshotFile": "./.worphling-snapshot.json"
-    }
-}
-```
-
----
-
-### `hash`
-
-Stores hashes instead of raw source values.
-
-```json
-{
-    "detection": {
-        "strategy": "hash",
-        "snapshotFile": "./.worphling-snapshot.json"
-    }
-}
-```
-
----
-
-### `git-diff`
-
-Disables modified-source detection inside Worphling.
-
-```json
-{
-    "detection": {
-        "strategy": "git-diff"
-    }
-}
-```
-
-Use this when your external workflow already determines source changes.
-
----
-
 ## Plugins
 
 Worphling uses ICU as its core message format. Plugins are only for **framework-specific behavior** layered on top of that.
@@ -524,13 +496,13 @@ Worphling can generate structured reports for humans and machines.
 ### JSON report
 
 ```bash
-worphling check --report-file ./artifacts/worphling-report.json
+worphling check --report-file ./.worphling/worphling-report.json
 ```
 
 ### Markdown report
 
 ```bash
-worphling report --report-file ./artifacts/worphling-report.md
+worphling report --report-file ./.worphling/worphling-report.md
 ```
 
 Reports include:
@@ -575,7 +547,7 @@ worphling check --ci
 ### Generate a translation report
 
 ```bash
-worphling report --report-file ./artifacts/worphling-report.md
+worphling report --report-file ./.worphling/worphling-report.md
 ```
 
 ### Translate only specific locales
@@ -597,9 +569,8 @@ For most teams:
     "plugin": {
         "name": "none"
     },
-    "detection": {
-        "strategy": "snapshot",
-        "snapshotFile": "./.worphling-snapshot.json"
+    "snapshot": {
+        "file": "./.worphling/.worphling-snapshot.json"
     },
     "validation": {
         "preservePlaceholders": true,
@@ -610,7 +581,7 @@ For most teams:
         "failOnModifiedSource": false
     },
     "ci": {
-        "reportFile": "./artifacts/worphling-report.json"
+        "reportFile": "./.worphling/worphling-report.json"
     }
 }
 ```

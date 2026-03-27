@@ -104,7 +104,7 @@ export interface IntegrationWorkspace {
 export function createIntegrationWorkspace(input: CreateIntegrationWorkspaceInput = {}): IntegrationWorkspace {
     const rootDirectoryPath = fs.mkdtempSync(path.join(os.tmpdir(), "worphling-integration-"));
     const localesDirectoryPath = path.join(rootDirectoryPath, "locales");
-    const snapshotFilePath = path.join(rootDirectoryPath, ".worphling-snapshot.json");
+    const snapshotFilePath = path.join(rootDirectoryPath, ".worphling", "snapshot.json");
     const reportFilePath = path.join(rootDirectoryPath, "artifacts", "worphling-report.json");
     const configFilePath = path.join(rootDirectoryPath, "worphling.config.mjs");
 
@@ -123,9 +123,8 @@ export function createIntegrationWorkspace(input: CreateIntegrationWorkspaceInpu
         plugin: {
             name: "none",
         },
-        detection: {
-            strategy: "snapshot",
-            snapshotFile: snapshotFilePath,
+        snapshot: {
+            file: snapshotFilePath,
         },
         output: {
             sortKeys: true,
@@ -165,9 +164,9 @@ export function createIntegrationWorkspace(input: CreateIntegrationWorkspaceInpu
             ...baseConfig.plugin,
             ...input.config?.plugin,
         },
-        detection: {
-            ...baseConfig.detection,
-            ...input.config?.detection,
+        snapshot: {
+            ...baseConfig.snapshot,
+            ...input.config?.snapshot,
         },
         output: {
             ...baseConfig.output,

@@ -128,7 +128,7 @@ let builtCliPromise: Promise<string> | null = null;
 export function createCliIntegrationWorkspace(input: CreateCliIntegrationWorkspaceInput = {}): CliIntegrationWorkspace {
     const rootDirectoryPath = fs.mkdtempSync(path.join(os.tmpdir(), "worphling-cli-integration-"));
     const localesDirectoryPath = path.join(rootDirectoryPath, "locales");
-    const snapshotFilePath = path.join(rootDirectoryPath, ".worphling-snapshot.json");
+    const snapshotFilePath = path.join(rootDirectoryPath, ".worphling", "snapshot.json");
     const reportFilePath = path.join(rootDirectoryPath, "artifacts", "worphling-report.json");
     const configFilePath = path.join(rootDirectoryPath, "worphling.config.mjs");
 
@@ -147,9 +147,8 @@ export function createCliIntegrationWorkspace(input: CreateCliIntegrationWorkspa
         plugin: {
             name: "none",
         },
-        detection: {
-            strategy: "snapshot",
-            snapshotFile: "./.worphling-snapshot.json",
+        snapshot: {
+            file: "./.worphling/snapshot.json",
         },
         output: {
             sortKeys: true,
@@ -189,9 +188,9 @@ export function createCliIntegrationWorkspace(input: CreateCliIntegrationWorkspa
             ...baseConfig.plugin,
             ...input.config?.plugin,
         },
-        detection: {
-            ...baseConfig.detection,
-            ...input.config?.detection,
+        snapshot: {
+            ...baseConfig.snapshot,
+            ...input.config?.snapshot,
         },
         output: {
             ...baseConfig.output,

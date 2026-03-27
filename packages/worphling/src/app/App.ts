@@ -152,20 +152,13 @@ export class App {
 
         const allTargetLocaleFiles = omit(allLocaleFiles, sourceLocale) as LocaleFiles;
         const targetLocaleFiles = this.#filterLocales(allTargetLocaleFiles);
-        const snapshot =
-            runtimeConfig.detection.strategy === "git-diff"
-                ? null
-                : this.#snapshotRepository.load(runtimeConfig.detection.snapshotFile);
+        const snapshot = this.#snapshotRepository.load(runtimeConfig.snapshot.file);
 
-        const diffResult = this.#runPlanner.analyze(
-            sourceLocaleFile,
-            targetLocaleFiles,
-            snapshot,
-            runtimeConfig.detection.strategy,
-        );
+        const diffResult = this.#runPlanner.analyze(sourceLocaleFile, targetLocaleFiles, snapshot);
         const plan = this.#runPlanner.createPlan(diffResult, flags.command);
         const executionPolicy = this.#resolveExecutionPolicy(ciMode);
         const requiresTranslation = this.#planRequiresTranslation(plan.actions);
+        const shouldBootstrapSnapshot = executionPolicy.writeFiles && snapshot === null;
 
         this.#runConsoleReporter.logDetectedChanges(diffResult);
         this.#runConsoleReporter.logExecutionMode(executionPolicy, ciMode);
@@ -176,7 +169,7 @@ export class App {
         let writtenFileCount = 0;
         let providerIssues: Array<LocaleIssue> = [];
 
-        if (executionPolicy.executePlan && plan.actions.length > 0) {
+        if (executionPolicy.executePlan && (plan.actions.length > 0 || shouldBootstrapSnapshot)) {
             try {
                 if (requiresTranslation) {
                     this.#initializeTranslationExecutor();
@@ -200,18 +193,8 @@ export class App {
                     writtenFileCount = Object.keys(localeFilesToWrite).length;
                 }
 
-                if (
-                    executionPolicy.writeFiles &&
-                    runtimeConfig.detection.snapshotFile &&
-                    this.#shouldSaveSnapshot(plan.actions) &&
-                    (runtimeConfig.detection.strategy === "snapshot" || runtimeConfig.detection.strategy === "hash")
-                ) {
-                    this.#snapshotRepository.save(
-                        runtimeConfig.detection.snapshotFile,
-                        sourceLocale,
-                        sourceLocaleFile,
-                        runtimeConfig.detection.strategy,
-                    );
+                if (executionPolicy.writeFiles && (snapshot === null || this.#shouldSaveSnapshot(plan.actions, snapshot))) {
+                    this.#snapshotRepository.save(runtimeConfig.snapshot.file, sourceLocale, sourceLocaleFile);
                 }
             } catch (error) {
                 if (error instanceof TranslationProviderExecutionError) {
@@ -434,14 +417,37 @@ export class App {
     /**
      * Returns whether the source snapshot should be updated after execution.
      *
-     * Snapshot updates are only required when modified source entries were
-     * retranslated successfully.
+     * Snapshot persistence defines the baseline for future modified-key detection.
+     *
+     * This helper only decides whether an action-based write should advance the
+     * snapshot. The caller is still responsible for enforcing write-mode guards
+     * and zero-action bootstrap behavior.
+     *
+     * Snapshot is saved when:
+     * - missing keys were translated (`translate-missing`)
+     * - modified keys were retranslated (`retranslate-modified`)
+     * - no previous snapshot exists and extra keys were removed during initial
+     *   bootstrap (`remove-extra-keys`)
+     *
+     * Snapshot is NOT saved when:
+     * - only extra keys were removed and a snapshot already exists
+     *
+     * Snapshot must never be saved in non-mutating modes such as CI or dry-run.
      *
      * @param actions - Ordered plan actions
-     * @returns Whether the snapshot should be saved
+     * @param snapshot - Previously loaded snapshot, or null when none exists
+     * @returns Whether the snapshot should be saved after a mutating run
      */
-    #shouldSaveSnapshot(actions: Array<PlanAction>): boolean {
-        return actions.some((action) => action.type === "retranslate-modified");
+    #shouldSaveSnapshot(actions: Array<PlanAction>, snapshot: Record<string, string> | null): boolean {
+        const hasTranslationWork = actions.some(
+            (action) => action.type === "translate-missing" || action.type === "retranslate-modified",
+        );
+
+        const isBootstrap = snapshot === null;
+
+        const hasCleanupOnly = actions.some((action) => action.type === "remove-extra-keys");
+
+        return hasTranslationWork || (isBootstrap && hasCleanupOnly);
     }
 
     /**

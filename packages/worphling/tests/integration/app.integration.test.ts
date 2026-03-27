@@ -132,13 +132,9 @@ test("ci mode writes a JSON report file for a non-report command", async () => {
     }
 });
 
-test("git-diff strategy does not report modified keys from snapshot state", async () => {
+test("check reports modified keys from snapshot state", async () => {
     const workspace = createIntegrationWorkspace({
         config: {
-            detection: {
-                strategy: "git-diff",
-                snapshotFile: undefined,
-            },
             validation: {
                 preservePlaceholders: false,
                 preserveIcuSyntax: false,
@@ -165,19 +161,26 @@ test("git-diff strategy does not report modified keys from snapshot state", asyn
     });
 
     try {
+        workspace.writeJsonFile(workspace.snapshotFilePath, {
+            sourceLocale: "en",
+            entries: {
+                greeting: "Hello v1",
+            },
+        });
+
         const exitCode = await workspace.run({
             command: "check",
             reportFile: workspace.reportFilePath,
         });
 
-        assert.equal(exitCode, ExitCode.Success);
+        assert.equal(exitCode, ExitCode.ValidationError);
 
         const report = workspace.readJsonFile<RunReport>(workspace.reportFilePath);
 
-        assert.equal(report.summary.modifiedCount, 0);
+        assert.equal(report.summary.modifiedCount, 1);
         assert.equal(
             report.issues.some((issue) => issue.type === "modified"),
-            false,
+            true,
         );
     } finally {
         workspace.cleanup();

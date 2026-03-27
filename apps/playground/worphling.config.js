@@ -29,10 +29,9 @@ const config = {
         name: "none", // or "none"
     },
 
-    // --- Detection ---
-    detection: {
-        strategy: "snapshot", // "snapshot" | "hash" | "git-diff"
-        snapshotFile: "./.worphling-snapshot.json",
+    // --- Snapshot ---
+    snapshot: {
+        file: "./.worphling/.worphling-snapshot.json",
     },
 
     // --- Output formatting ---
@@ -64,7 +63,7 @@ const config = {
     // --- CI ---
     ci: {
         mode: false,
-        reportFile: "./artifacts/worphling-report.json",
+        reportFile: "./.worphling/worphling-report.json",
         failOnChanges: false,
         failOnWarnings: false,
     },

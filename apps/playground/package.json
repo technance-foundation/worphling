@@ -15,7 +15,7 @@
         "sync": "worphling sync --write",
         "translate": "worphling translate --write",
         "fix": "worphling fix --write",
-        "report": "worphling report --report-file ./artifacts/worphling-report.md",
+        "report": "worphling report --report-file ./.worphling/worphling-report.md",
         "e2e:ci": "node ./scripts/e2e-translate-and-verify.mjs"
     },
     "type": "module",
