@@ -1,6 +1,9 @@
 {
     "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
-    "changelog": ["@changesets/changelog-github", { "repo": "technance-foundation/worphling" }],
+    "changelog": [
+        "@changesets/changelog-github",
+        { "repo": "technance-foundation/worphling" }
+    ],
     "commit": false,
     "fixed": [],
     "linked": [],
