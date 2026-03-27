@@ -158,6 +158,7 @@ export class App {
         const plan = this.#runPlanner.createPlan(diffResult, flags.command);
         const executionPolicy = this.#resolveExecutionPolicy(ciMode);
         const requiresTranslation = this.#planRequiresTranslation(plan.actions);
+        const shouldBootstrapSnapshot = executionPolicy.writeFiles && snapshot === null;
 
         this.#runConsoleReporter.logDetectedChanges(diffResult);
         this.#runConsoleReporter.logExecutionMode(executionPolicy, ciMode);
@@ -168,7 +169,7 @@ export class App {
         let writtenFileCount = 0;
         let providerIssues: Array<LocaleIssue> = [];
 
-        if (executionPolicy.executePlan && plan.actions.length > 0) {
+        if (executionPolicy.executePlan && (plan.actions.length > 0 || shouldBootstrapSnapshot)) {
             try {
                 if (requiresTranslation) {
                     this.#initializeTranslationExecutor();
@@ -192,7 +193,7 @@ export class App {
                     writtenFileCount = Object.keys(localeFilesToWrite).length;
                 }
 
-                if (executionPolicy.writeFiles && this.#shouldSaveSnapshot(plan.actions, snapshot)) {
+                if (shouldBootstrapSnapshot || this.#shouldSaveSnapshot(plan.actions, snapshot)) {
                     this.#snapshotRepository.save(runtimeConfig.snapshot.file, sourceLocale, sourceLocaleFile);
                 }
             } catch (error) {
