@@ -5,7 +5,6 @@ import { pathToFileURL } from "node:url";
 import {
     CONFIG_FILE_EXTENSIONS,
     DEFAULT_CI_REPORT_FILE,
-    DEFAULT_DETECTION_STRATEGY,
     DEFAULT_JSON_INDENTATION,
     DEFAULT_OPENAI_MODEL,
     DEFAULT_PLUGIN_NAME,
@@ -13,7 +12,6 @@ import {
     DEFAULT_TRANSLATION_BATCH_SIZE,
     DEFAULT_TRANSLATION_CONCURRENCY,
     DEFAULT_TRANSLATION_MAX_RETRIES,
-    SUPPORTED_DETECTION_STRATEGIES,
     SUPPORTED_PLUGIN_NAMES,
     SUPPORTED_PROVIDER_NAMES,
 } from "../constants.js";
@@ -21,10 +19,10 @@ import { ConfigFileNotFoundError, ConfigLoadError, ConfigValidationError } from 
 import type {
     CiConfig,
     Config,
-    DetectionConfig,
     OutputConfig,
     PluginConfig,
     ResolvedConfig,
+    SnapshotConfig,
     TranslationConfig,
     TranslationProviderConfig,
     ValidationConfig,
@@ -184,8 +182,8 @@ export class ConfigLoader {
             throw new ConfigValidationError('Invalid configuration: Missing required object "plugin".');
         }
 
-        if (!this.#isPlainObject(config.detection)) {
-            throw new ConfigValidationError('Invalid configuration: Missing required object "detection".');
+        if (!this.#isPlainObject(config.snapshot)) {
+            throw new ConfigValidationError('Invalid configuration: Missing required object "snapshot".');
         }
 
         if (!this.#isPlainObject(config.output)) {
@@ -206,7 +204,7 @@ export class ConfigLoader {
 
         this.#validateProvider(config.provider);
         this.#validatePlugin(config.plugin);
-        this.#validateDetection(config.detection);
+        this.#validateSnapshot(config.snapshot);
         this.#validateOutput(config.output);
         this.#validateValidation(config.validation);
         this.#validateTranslation(config.translation);
@@ -230,9 +228,8 @@ export class ConfigLoader {
             name: config.plugin.name || DEFAULT_PLUGIN_NAME,
         };
 
-        const detection: DetectionConfig = {
-            strategy: config.detection.strategy || DEFAULT_DETECTION_STRATEGY,
-            snapshotFile: config.detection.snapshotFile,
+        const snapshot: SnapshotConfig = {
+            file: config.snapshot.file,
         };
 
         const output: OutputConfig = {
@@ -271,7 +268,7 @@ export class ConfigLoader {
             filePattern: config.filePattern,
             provider,
             plugin,
-            detection,
+            snapshot,
             output,
             validation,
             translation,
@@ -307,16 +304,8 @@ export class ConfigLoader {
         }
     }
 
-    #validateDetection(detection: Record<string, unknown>): void {
-        if (!this.#isSupportedDetectionStrategy(detection.strategy)) {
-            throw new ConfigValidationError(
-                `Invalid configuration: Unsupported detection strategy "${String(detection.strategy)}".`,
-            );
-        }
-
-        if (detection.snapshotFile !== undefined && typeof detection.snapshotFile !== "string") {
-            throw new ConfigValidationError('Invalid configuration: "detection.snapshotFile" must be a string when provided.');
-        }
+    #validateSnapshot(snapshot: Record<string, unknown>): void {
+        this.#validateRequiredString(snapshot.file, "snapshot.file");
     }
 
     /**
@@ -469,18 +458,5 @@ export class ConfigLoader {
      */
     #isSupportedPluginName(value: unknown): value is (typeof SUPPORTED_PLUGIN_NAMES)[number] {
         return typeof value === "string" && SUPPORTED_PLUGIN_NAMES.includes(value as (typeof SUPPORTED_PLUGIN_NAMES)[number]);
-    }
-
-    /**
-     * Returns whether the provided value is a supported detection strategy.
-     *
-     * @param value - Value to test
-     * @returns Whether the value is a supported detection strategy
-     */
-    #isSupportedDetectionStrategy(value: unknown): value is (typeof SUPPORTED_DETECTION_STRATEGIES)[number] {
-        return (
-            typeof value === "string" &&
-            SUPPORTED_DETECTION_STRATEGIES.includes(value as (typeof SUPPORTED_DETECTION_STRATEGIES)[number])
-        );
     }
 }

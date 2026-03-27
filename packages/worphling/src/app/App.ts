@@ -152,17 +152,9 @@ export class App {
 
         const allTargetLocaleFiles = omit(allLocaleFiles, sourceLocale) as LocaleFiles;
         const targetLocaleFiles = this.#filterLocales(allTargetLocaleFiles);
-        const snapshot =
-            runtimeConfig.detection.strategy === "git-diff"
-                ? null
-                : this.#snapshotRepository.load(runtimeConfig.detection.snapshotFile);
+        const snapshot = this.#snapshotRepository.load(runtimeConfig.snapshot.file);
 
-        const diffResult = this.#runPlanner.analyze(
-            sourceLocaleFile,
-            targetLocaleFiles,
-            snapshot,
-            runtimeConfig.detection.strategy,
-        );
+        const diffResult = this.#runPlanner.analyze(sourceLocaleFile, targetLocaleFiles, snapshot);
         const plan = this.#runPlanner.createPlan(diffResult, flags.command);
         const executionPolicy = this.#resolveExecutionPolicy(ciMode);
         const requiresTranslation = this.#planRequiresTranslation(plan.actions);
@@ -200,18 +192,8 @@ export class App {
                     writtenFileCount = Object.keys(localeFilesToWrite).length;
                 }
 
-                if (
-                    executionPolicy.writeFiles &&
-                    runtimeConfig.detection.snapshotFile &&
-                    this.#shouldSaveSnapshot(plan.actions) &&
-                    (runtimeConfig.detection.strategy === "snapshot" || runtimeConfig.detection.strategy === "hash")
-                ) {
-                    this.#snapshotRepository.save(
-                        runtimeConfig.detection.snapshotFile,
-                        sourceLocale,
-                        sourceLocaleFile,
-                        runtimeConfig.detection.strategy,
-                    );
+                if (executionPolicy.writeFiles && this.#shouldSaveSnapshot(plan.actions)) {
+                    this.#snapshotRepository.save(runtimeConfig.snapshot.file, sourceLocale, sourceLocaleFile);
                 }
             } catch (error) {
                 if (error instanceof TranslationProviderExecutionError) {
@@ -434,14 +416,20 @@ export class App {
     /**
      * Returns whether the source snapshot should be updated after execution.
      *
-     * Snapshot updates are only required when modified source entries were
-     * retranslated successfully.
+     * Snapshot updates are required whenever a successful mutating run updates
+     * locale state so future runs compare the current source locale against the
+     * latest applied baseline.
      *
      * @param actions - Ordered plan actions
      * @returns Whether the snapshot should be saved
      */
     #shouldSaveSnapshot(actions: Array<PlanAction>): boolean {
-        return actions.some((action) => action.type === "retranslate-modified");
+        return actions.some(
+            (action) =>
+                action.type === "translate-missing" ||
+                action.type === "retranslate-modified" ||
+                action.type === "remove-extra-keys",
+        );
     }
 
     /**

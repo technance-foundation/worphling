@@ -1,5 +1,5 @@
 import type { LocaleDiffCalculator } from "../domain/LocaleDiffCalculator.js";
-import type { CommandName, DetectionStrategy, DiffResult, FlatLocaleFile, LocaleFile, LocaleFiles, Plan } from "../types.js";
+import type { CommandName, DiffResult, FlatLocaleFile, LocaleFile, LocaleFiles, Plan } from "../types.js";
 
 /**
  * Builds structured diff results and ordered execution plans for a run.
@@ -23,36 +23,17 @@ export class RunPlanner {
     }
 
     /**
-     * Builds the structured diff result for the current locale state.
-     *
-     * Detection strategy behavior:
-     * - `snapshot`: missing, extra, and modified are computed using stored source values
-     * - `hash`: missing, extra, and modified are computed using stored source hashes
-     * - `git-diff`: only missing and extra are computed here; modified detection is disabled
+     * Builds the structured diff result for the current locale state using the
+     * stored source snapshot.
      *
      * @param sourceLocaleFile - Current source locale file
      * @param targetLocaleFiles - Current target locale files
      * @param snapshot - Previously stored source snapshot
-     * @param detectionStrategy - Active detection strategy
      * @returns Structured diff result
      */
-    analyze(
-        sourceLocaleFile: LocaleFile,
-        targetLocaleFiles: LocaleFiles,
-        snapshot: Record<string, string> | null,
-        detectionStrategy: DetectionStrategy,
-    ): DiffResult {
+    analyze(sourceLocaleFile: LocaleFile, targetLocaleFiles: LocaleFiles, snapshot: Record<string, string> | null): DiffResult {
         const missing = this.#localeDiffCalculator.findMissingKeys(sourceLocaleFile, targetLocaleFiles);
         const extra = this.#localeDiffCalculator.findExtraKeys(sourceLocaleFile, targetLocaleFiles);
-
-        if (detectionStrategy === "git-diff") {
-            return {
-                missing,
-                extra,
-                modified: {},
-            };
-        }
-
         const modified = this.#buildModifiedKeysMap(sourceLocaleFile, targetLocaleFiles, snapshot);
 
         return {

@@ -1,11 +1,6 @@
 import type OpenAI from "openai";
 
-import type {
-    SupportedDetectionStrategy,
-    SupportedPluginName,
-    SupportedProviderName,
-    SupportedReportFormat,
-} from "./constants.js";
+import type { SupportedPluginName, SupportedProviderName, SupportedReportFormat } from "./constants.js";
 
 /**
  * Supported CLI command names.
@@ -24,11 +19,6 @@ export type TranslationProviderName = SupportedProviderName;
  * Supported plugin names.
  */
 export type PluginName = SupportedPluginName;
-
-/**
- * Supported source-change detection strategies.
- */
-export type DetectionStrategy = SupportedDetectionStrategy;
 
 /**
  * Supported report output formats.
@@ -142,21 +132,6 @@ export interface PluginConfig {
      * Plugin identifier.
      */
     name: PluginName;
-}
-
-/**
- * Source-change detection configuration.
- */
-export interface DetectionConfig {
-    /**
-     * Strategy used to determine which source keys changed.
-     */
-    strategy: DetectionStrategy;
-
-    /**
-     * Optional snapshot file path used by snapshot- or hash-based detection.
-     */
-    snapshotFile?: string;
 }
 
 /**
@@ -308,9 +283,9 @@ export interface Config {
     plugin: PluginConfig;
 
     /**
-     * Source-change detection configuration.
+     * Snapshot file contents for source tracking.
      */
-    detection: DetectionConfig;
+    snapshot: SnapshotConfig;
 
     /**
      * Output writing configuration.
@@ -665,7 +640,7 @@ export interface SnapshotFile {
     sourceLocale: string;
 
     /**
-     * Hashes keyed by dot-notated source translation key.
+     * Flattened source values keyed by dot-notated translation key.
      */
     entries: Record<string, string>;
 }
@@ -817,4 +792,11 @@ export interface Logger {
      * @param message - Message to write
      */
     error(message: string): void;
+}
+
+export interface SnapshotConfig {
+    /**
+     * Snapshot file path used for source-change detection.
+     */
+    file: string;
 }

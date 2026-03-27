@@ -18,11 +18,6 @@ export const SUPPORTED_PROVIDER_NAMES = ["openai"] as const;
 export const SUPPORTED_PLUGIN_NAMES = ["next-intl", "none"] as const;
 
 /**
- * Supported detection strategies.
- */
-export const SUPPORTED_DETECTION_STRATEGIES = ["hash", "snapshot", "git-diff"] as const;
-
-/**
  * Supported serialized report formats.
  */
 export const SUPPORTED_REPORT_FORMATS = ["json", "markdown"] as const;
@@ -34,7 +29,6 @@ export const SUPPORTED_REPORT_FORMATS = ["json", "markdown"] as const;
  */
 export type SupportedProviderName = (typeof SUPPORTED_PROVIDER_NAMES)[number];
 export type SupportedPluginName = (typeof SUPPORTED_PLUGIN_NAMES)[number];
-export type SupportedDetectionStrategy = (typeof SUPPORTED_DETECTION_STRATEGIES)[number];
 export type SupportedReportFormat = (typeof SUPPORTED_REPORT_FORMATS)[number];
 
 /**
@@ -61,11 +55,6 @@ export const DEFAULT_TRANSLATION_MAX_RETRIES = 3;
  * Default translation batch concurrency.
  */
 export const DEFAULT_TRANSLATION_CONCURRENCY = 2;
-
-/**
- * Default detection strategy.
- */
-export const DEFAULT_DETECTION_STRATEGY: SupportedDetectionStrategy = "hash";
 
 /**
  * Default plugin name.
