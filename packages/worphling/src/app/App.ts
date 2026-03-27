@@ -192,7 +192,7 @@ export class App {
                     writtenFileCount = Object.keys(localeFilesToWrite).length;
                 }
 
-                if (executionPolicy.writeFiles && this.#shouldSaveSnapshot(plan.actions)) {
+                if (executionPolicy.writeFiles && this.#shouldSaveSnapshot(plan.actions, snapshot)) {
                     this.#snapshotRepository.save(runtimeConfig.snapshot.file, sourceLocale, sourceLocaleFile);
                 }
             } catch (error) {
@@ -416,20 +416,38 @@ export class App {
     /**
      * Returns whether the source snapshot should be updated after execution.
      *
-     * Snapshot updates are required whenever a successful mutating run updates
-     * locale state so future runs compare the current source locale against the
-     * latest applied baseline.
+     * Snapshot persistence defines the "baseline" for future modified-key detection.
+     *
+     * The snapshot is updated only when the run brings target locales into alignment
+     * with the current source locale, or when initializing the baseline for the
+     * first time.
+     *
+     * Snapshot is saved when:
+     * - missing keys were translated (`translate-missing`)
+     * - modified keys were retranslated (`retranslate-modified`)
+     *
+     * Snapshot is also saved when:
+     * - no previous snapshot exists AND extra keys were removed (`remove-extra-keys`)
+     *   (bootstrap case to establish an initial baseline)
+     *
+     * Snapshot is NOT saved when:
+     * - only extra keys were removed and a snapshot already exists
+     *   (to avoid advancing the baseline without updating stale translations)
      *
      * @param actions - Ordered plan actions
+     * @param snapshot - Previously loaded snapshot (or null if none exists)
      * @returns Whether the snapshot should be saved
      */
-    #shouldSaveSnapshot(actions: Array<PlanAction>): boolean {
-        return actions.some(
-            (action) =>
-                action.type === "translate-missing" ||
-                action.type === "retranslate-modified" ||
-                action.type === "remove-extra-keys",
+    #shouldSaveSnapshot(actions: Array<PlanAction>, snapshot: Record<string, string> | null): boolean {
+        const hasTranslationWork = actions.some(
+            (action) => action.type === "translate-missing" || action.type === "retranslate-modified",
         );
+
+        const isBootstrap = snapshot === null;
+
+        const hasCleanupOnly = actions.some((action) => action.type === "remove-extra-keys");
+
+        return hasTranslationWork || (isBootstrap && hasCleanupOnly);
     }
 
     /**
