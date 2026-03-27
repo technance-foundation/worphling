@@ -63,7 +63,7 @@ const config = {
     // --- CI ---
     ci: {
         mode: false,
-        reportFile: "./worphling/worphling-report.json",
+        reportFile: "./.worphling/worphling-report.json",
         failOnChanges: false,
         failOnWarnings: false,
     },
