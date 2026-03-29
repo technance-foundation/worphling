@@ -737,18 +737,16 @@ export enum ExitCode {
 
     /**
      * Validation failed.
+     *
+     * This includes structural validation failures as well as runs configured
+     * to fail when changes or warnings are detected.
      */
     ValidationError = 3,
 
     /**
-     * Changes were detected and configured policy required failure.
-     */
-    ChangesDetected = 4,
-
-    /**
      * Translation provider failed.
      */
-    ProviderError = 5,
+    ProviderError = 4,
 }
 
 /**

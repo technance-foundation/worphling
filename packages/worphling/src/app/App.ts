@@ -495,7 +495,7 @@ export class App {
         }
 
         if (failOnChanges && report.summary.hasChanges) {
-            return ExitCode.ChangesDetected;
+            return ExitCode.ValidationError;
         }
 
         return ExitCode.Success;
