@@ -65,8 +65,3 @@ export const DEFAULT_PLUGIN_NAME: SupportedPluginName = "none";
  * Default translation provider temperature.
  */
 export const DEFAULT_PROVIDER_TEMPERATURE = 0;
-
-/**
- * Default report file path used in CI mode when none is configured explicitly.
- */
-export const DEFAULT_CI_REPORT_FILE = "./artifacts/worphling-report.json";

@@ -253,8 +253,15 @@ test("cli check --locales limits analysis to selected locales", async () => {
     }
 });
 
-test("cli check in CI mode writes a JSON report file", async () => {
+test("cli check writes a JSON report file from runtime config", async () => {
     const workspace = createCliIntegrationWorkspace({
+        config: {
+            runtime: {
+                reportFile: "./artifacts/worphling-report.json",
+                failOnChanges: false,
+                failOnWarnings: false,
+            },
+        },
         locales: {
             en: {
                 greeting: "Hello",
@@ -267,7 +274,7 @@ test("cli check in CI mode writes a JSON report file", async () => {
     });
 
     try {
-        const result = await workspace.runCli(["check", "--ci", "--report-file", workspace.reportFilePath]);
+        const result = await workspace.runCli(["check"]);
 
         assert.equal(result.exitCode, ExitCode.Success);
         assert.equal(result.stderr, "");

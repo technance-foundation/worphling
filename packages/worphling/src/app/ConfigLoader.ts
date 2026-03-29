@@ -4,7 +4,6 @@ import { pathToFileURL } from "node:url";
 
 import {
     CONFIG_FILE_EXTENSIONS,
-    DEFAULT_CI_REPORT_FILE,
     DEFAULT_JSON_INDENTATION,
     DEFAULT_OPENAI_MODEL,
     DEFAULT_PLUGIN_NAME,
@@ -17,11 +16,11 @@ import {
 } from "../constants.js";
 import { ConfigFileNotFoundError, ConfigLoadError, ConfigValidationError } from "../errors.js";
 import type {
-    CiConfig,
     Config,
     OutputConfig,
     PluginConfig,
     ResolvedConfig,
+    RuntimeConfig,
     SnapshotConfig,
     TranslationConfig,
     TranslationProviderConfig,
@@ -198,8 +197,8 @@ export class ConfigLoader {
             throw new ConfigValidationError('Invalid configuration: Missing required object "translation".');
         }
 
-        if (!this.#isPlainObject(config.ci)) {
-            throw new ConfigValidationError('Invalid configuration: Missing required object "ci".');
+        if (config.runtime !== undefined && !this.#isPlainObject(config.runtime)) {
+            throw new ConfigValidationError('Invalid configuration: "runtime" must be an object when provided.');
         }
 
         this.#validateProvider(config.provider);
@@ -208,7 +207,7 @@ export class ConfigLoader {
         this.#validateOutput(config.output);
         this.#validateValidation(config.validation);
         this.#validateTranslation(config.translation);
-        this.#validateCi(config.ci);
+        this.#validateRuntime(config.runtime);
     }
 
     /**
@@ -255,11 +254,10 @@ export class ConfigLoader {
             contextFile: config.translation.contextFile,
         };
 
-        const ci: CiConfig = {
-            mode: config.ci.mode,
-            reportFile: config.ci.reportFile || DEFAULT_CI_REPORT_FILE,
-            failOnChanges: config.ci.failOnChanges,
-            failOnWarnings: config.ci.failOnWarnings,
+        const runtime: RuntimeConfig = {
+            reportFile: config.runtime?.reportFile,
+            failOnChanges: config.runtime?.failOnChanges ?? false,
+            failOnWarnings: config.runtime?.failOnWarnings ?? false,
         };
 
         return {
@@ -272,7 +270,7 @@ export class ConfigLoader {
             output,
             validation,
             translation,
-            ci,
+            runtime,
         };
     }
 
@@ -298,12 +296,24 @@ export class ConfigLoader {
         }
     }
 
+    /**
+     * Validates the plugin config.
+     *
+     * @param plugin - Raw plugin config
+     * @throws {ConfigValidationError} When validation fails
+     */
     #validatePlugin(plugin: Record<string, unknown>): void {
         if (!this.#isSupportedPluginName(plugin.name)) {
             throw new ConfigValidationError(`Invalid configuration: Unsupported plugin name "${String(plugin.name)}".`);
         }
     }
 
+    /**
+     * Validates the snapshot config.
+     *
+     * @param snapshot - Raw snapshot config
+     * @throws {ConfigValidationError} When validation fails
+     */
     #validateSnapshot(snapshot: Record<string, unknown>): void {
         this.#validateRequiredString(snapshot.file, "snapshot.file");
     }
@@ -389,18 +399,30 @@ export class ConfigLoader {
     }
 
     /**
-     * Validates the CI config.
+     * Validates the optional runtime config.
      *
-     * @param ci - Raw CI config
+     * @param runtime - Raw runtime config
      * @throws {ConfigValidationError} When validation fails
      */
-    #validateCi(ci: Record<string, unknown>): void {
-        this.#validateRequiredBoolean(ci.mode, "ci.mode");
-        this.#validateRequiredBoolean(ci.failOnChanges, "ci.failOnChanges");
-        this.#validateRequiredBoolean(ci.failOnWarnings, "ci.failOnWarnings");
+    #validateRuntime(runtime: unknown): void {
+        if (runtime === undefined) {
+            return;
+        }
 
-        if (ci.reportFile !== undefined && typeof ci.reportFile !== "string") {
-            throw new ConfigValidationError('Invalid configuration: "ci.reportFile" must be a string when provided.');
+        if (!this.#isPlainObject(runtime)) {
+            throw new ConfigValidationError('Invalid configuration: "runtime" must be an object when provided.');
+        }
+
+        if (runtime.reportFile !== undefined && typeof runtime.reportFile !== "string") {
+            throw new ConfigValidationError('Invalid configuration: "runtime.reportFile" must be a string when provided.');
+        }
+
+        if (runtime.failOnChanges !== undefined && typeof runtime.failOnChanges !== "boolean") {
+            throw new ConfigValidationError('Invalid configuration: "runtime.failOnChanges" must be a boolean when provided.');
+        }
+
+        if (runtime.failOnWarnings !== undefined && typeof runtime.failOnWarnings !== "boolean") {
+            throw new ConfigValidationError('Invalid configuration: "runtime.failOnWarnings" must be a boolean when provided.');
         }
     }
 

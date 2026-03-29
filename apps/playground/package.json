@@ -11,11 +11,10 @@
     "scripts": {
         "start": "worphling",
         "check": "worphling check",
-        "check:ci": "worphling check --ci",
         "sync": "worphling sync --write",
         "translate": "worphling translate --write",
         "fix": "worphling fix --write",
-        "report": "worphling report --report-file ./.worphling/worphling-report.md",
+        "report": "worphling report",
         "e2e:ci": "node ./scripts/e2e-translate-and-verify.mjs"
     },
     "type": "module",
