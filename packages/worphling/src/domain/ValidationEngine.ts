@@ -31,6 +31,12 @@ interface IcuAstNode {
 
 /**
  * Parsed ICU token signature model used for structural comparison.
+ *
+ * This signature is intentionally more semantic than positional:
+ * - sibling ordering is ignored
+ * - literal text is ignored
+ * - placeholder/tag/select/plural structure is preserved
+ * - plural targets may include additional locale-specific branches
  */
 interface IcuStructureSignature {
     /**
@@ -44,9 +50,14 @@ interface IcuStructureSignature {
     value?: string;
 
     /**
-     * Option keys for select/plural-like nodes.
+     * Option keys for select/plural-style nodes.
      */
-    options?: Array<string>;
+    optionKeys?: Array<string>;
+
+    /**
+     * Nested option signatures keyed by option name.
+     */
+    options?: Record<string, Array<IcuStructureSignature>>;
 
     /**
      * Nested child signatures.
@@ -257,6 +268,9 @@ export class ValidationEngine {
      * Placeholder extraction is AST-based so ICU branch literals such as
      * `{Rejected}` are not incorrectly treated as placeholders.
      *
+     * Placeholder order is intentionally ignored. We only care that the same
+     * placeholder names still exist.
+     *
      * @param locale - Target locale
      * @param key - Translation key
      * @param sourceValue - Source message
@@ -294,6 +308,11 @@ export class ValidationEngine {
      *
      * Parsing failures are reported as ICU validation errors. When both messages
      * parse successfully, their normalized structural signatures are compared.
+     *
+     * This comparison is intentionally semantic rather than positional:
+     * - node ordering may change across languages
+     * - plural targets may include extra locale-specific branches
+     * - select/selectordinal-style branches must still preserve source branches
      *
      * @param locale - Target locale
      * @param key - Translation key
@@ -333,7 +352,7 @@ export class ValidationEngine {
         const sourceSignature = this.#buildIcuStructureSignature(sourceParseResult.ast);
         const targetSignature = this.#buildIcuStructureSignature(targetParseResult.ast);
 
-        if (JSON.stringify(sourceSignature) === JSON.stringify(targetSignature)) {
+        if (this.#areIcuStructureSignaturesCompatible(sourceSignature, targetSignature)) {
             return null;
         }
 
@@ -350,6 +369,10 @@ export class ValidationEngine {
 
     /**
      * Validates HTML-like tag preservation for a single translation entry.
+     *
+     * Tag ordering is intentionally ignored so translations may naturally move
+     * tagged segments within the sentence. We only require that the same tag
+     * names and open/close counts are preserved.
      *
      * @param locale - Target locale
      * @param key - Translation key
@@ -368,7 +391,7 @@ export class ValidationEngine {
         const sourceTags = this.#extractHtmlTagTokensFromAst(sourceParseResult.ast);
         const targetTags = this.#extractHtmlTagTokensFromAst(targetParseResult.ast);
 
-        if (this.#areStringArraysEqual(sourceTags, targetTags)) {
+        if (this.#areTagTokenListsEquivalent(sourceTags, targetTags)) {
             return null;
         }
 
@@ -515,13 +538,17 @@ export class ValidationEngine {
      * - plural/select option keys
      * - nested child structure
      *
+     * Literal content and sibling ordering are intentionally excluded.
+     *
      * @param ast - Parsed ICU AST
      * @returns Structural signature
      */
     #buildIcuStructureSignature(ast: Array<unknown>): Array<IcuStructureSignature> {
-        return ast
-            .map((node) => this.#buildIcuNodeSignature(node))
-            .filter((signature): signature is IcuStructureSignature => signature !== null);
+        return this.#normalizeIcuStructureSignatures(
+            ast
+                .map((node) => this.#buildIcuNodeSignature(node))
+                .filter((signature): signature is IcuStructureSignature => signature !== null),
+        );
     }
 
     /**
@@ -549,31 +576,196 @@ export class ValidationEngine {
             return {
                 type: "tag",
                 value: typeof node.value === "string" ? node.value : undefined,
-                children: Array.isArray(node.children) ? this.#buildIcuStructureSignature(node.children) : [],
+                children: this.#normalizeIcuStructureSignatures(
+                    Array.isArray(node.children) ? this.#buildIcuStructureSignature(node.children) : [],
+                ),
             };
         }
 
         if (this.#hasOptions(node)) {
             const optionKeys = Object.keys(node.options).sort();
-            const optionChildren = optionKeys.flatMap((optionKey) => {
+            const options: Record<string, Array<IcuStructureSignature>> = {};
+
+            for (const optionKey of optionKeys) {
                 const option = node.options[optionKey];
 
-                return option && Array.isArray(option.value) ? this.#buildIcuStructureSignature(option.value) : [];
-            });
+                options[optionKey] = option && Array.isArray(option.value) ? this.#buildIcuStructureSignature(option.value) : [];
+            }
 
             return {
                 type: this.#normalizeAstNodeType(node.type),
                 value: typeof node.value === "string" ? node.value : undefined,
-                options: optionKeys,
-                children: optionChildren,
+                optionKeys,
+                options,
             };
         }
 
         return {
             type: this.#normalizeAstNodeType(node.type),
             value: typeof node.value === "string" ? node.value : undefined,
-            children: Array.isArray(node.children) ? this.#buildIcuStructureSignature(node.children) : undefined,
+            children: this.#normalizeIcuStructureSignatures(
+                Array.isArray(node.children) ? this.#buildIcuStructureSignature(node.children) : [],
+            ),
         };
+    }
+
+    /**
+     * Returns whether the source and target ICU structure signatures are
+     * compatible.
+     *
+     * Compatibility rules:
+     * - ordering is ignored
+     * - source-required nodes must still exist in target
+     * - plural targets may include additional locale-specific branches
+     * - select targets must preserve the same branch keys
+     *
+     * @param source - Source signatures
+     * @param target - Target signatures
+     * @returns Whether the structures are compatible
+     */
+    #areIcuStructureSignaturesCompatible(source: Array<IcuStructureSignature>, target: Array<IcuStructureSignature>): boolean {
+        if (source.length !== target.length) {
+            return false;
+        }
+
+        const remainingTarget = [...target];
+
+        for (const sourceSignature of source) {
+            const targetIndex = remainingTarget.findIndex((targetSignature) =>
+                this.#isIcuStructureSignatureCompatible(sourceSignature, targetSignature),
+            );
+
+            if (targetIndex === -1) {
+                return false;
+            }
+
+            remainingTarget.splice(targetIndex, 1);
+        }
+
+        return remainingTarget.length === 0;
+    }
+
+    /**
+     * Returns whether a target node signature is compatible with a source node
+     * signature.
+     *
+     * @param source - Source node signature
+     * @param target - Target node signature
+     * @returns Whether the target is compatible
+     */
+    #isIcuStructureSignatureCompatible(source: IcuStructureSignature, target: IcuStructureSignature): boolean {
+        if (source.type !== target.type) {
+            return false;
+        }
+
+        if (source.value !== target.value) {
+            return false;
+        }
+
+        if (source.type === "select") {
+            if (!this.#areStringArraysEqual(source.optionKeys || [], target.optionKeys || [])) {
+                return false;
+            }
+
+            return this.#areIcuOptionMapsCompatible(source.options || {}, target.options || {}, false);
+        }
+
+        if (source.type === "plural") {
+            if (!this.#isStringArraySubset(source.optionKeys || [], target.optionKeys || [])) {
+                return false;
+            }
+
+            return this.#areIcuOptionMapsCompatible(source.options || {}, target.options || {}, true);
+        }
+
+        if (source.type === "tag") {
+            return this.#areIcuStructureSignaturesCompatible(source.children || [], target.children || []);
+        }
+
+        return this.#areIcuStructureSignaturesCompatible(source.children || [], target.children || []);
+    }
+
+    /**
+     * Returns whether two ICU option maps are compatible.
+     *
+     * @param source - Source options
+     * @param target - Target options
+     * @param allowExtraTargetKeys - Whether extra target keys are allowed
+     * @returns Whether the option maps are compatible
+     */
+    #areIcuOptionMapsCompatible(
+        source: Record<string, Array<IcuStructureSignature>>,
+        target: Record<string, Array<IcuStructureSignature>>,
+        allowExtraTargetKeys: boolean,
+    ): boolean {
+        const sourceKeys = Object.keys(source).sort();
+        const targetKeys = Object.keys(target).sort();
+
+        if (allowExtraTargetKeys) {
+            if (!this.#isStringArraySubset(sourceKeys, targetKeys)) {
+                return false;
+            }
+        } else if (!this.#areStringArraysEqual(sourceKeys, targetKeys)) {
+            return false;
+        }
+
+        for (const sourceKey of sourceKeys) {
+            const sourceValue = source[sourceKey] || [];
+            const targetValue = target[sourceKey];
+
+            if (!targetValue) {
+                return false;
+            }
+
+            if (!this.#areIcuStructureSignaturesCompatible(sourceValue, targetValue)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Returns a canonicalized list of ICU structure signatures.
+     *
+     * This sorts sibling nodes so equality and compatibility checks do not
+     * depend on sentence word order.
+     *
+     * @param signatures - Raw signatures
+     * @returns Normalized signatures
+     */
+    #normalizeIcuStructureSignatures(signatures: Array<IcuStructureSignature>): Array<IcuStructureSignature> {
+        return [...signatures].sort((left, right) =>
+            this.#serializeIcuStructureSignature(left).localeCompare(this.#serializeIcuStructureSignature(right)),
+        );
+    }
+
+    /**
+     * Serializes an ICU structure signature into a stable string suitable for
+     * canonical ordering.
+     *
+     * @param signature - Signature to serialize
+     * @returns Stable serialized value
+     */
+    #serializeIcuStructureSignature(signature: IcuStructureSignature): string {
+        const normalizedChildren = (signature.children || []).map((child) => this.#serializeIcuStructureSignature(child));
+        const normalizedOptionKeys = [...(signature.optionKeys || [])].sort();
+        const normalizedOptions = Object.fromEntries(
+            Object.keys(signature.options || {})
+                .sort()
+                .map((key) => [
+                    key,
+                    (signature.options?.[key] || []).map((child) => this.#serializeIcuStructureSignature(child)),
+                ]),
+        );
+
+        return JSON.stringify({
+            type: signature.type,
+            value: signature.value,
+            optionKeys: normalizedOptionKeys,
+            options: normalizedOptions,
+            children: normalizedChildren,
+        });
     }
 
     /**
@@ -659,6 +851,54 @@ export class ValidationEngine {
         }
 
         return left.every((value, index) => value === right[index]);
+    }
+
+    /**
+     * Returns whether all values from the left array exist in the right array.
+     *
+     * Both arrays are treated as sets of unique values.
+     *
+     * @param left - Required source values
+     * @param right - Target values
+     * @returns Whether the left array is a subset of the right array
+     */
+    #isStringArraySubset(left: Array<string>, right: Array<string>): boolean {
+        const rightSet = new Set(right);
+
+        return left.every((value) => rightSet.has(value));
+    }
+
+    /**
+     * Returns whether two HTML-like tag token lists are equivalent.
+     *
+     * Tag order is ignored, but open/close counts per tag must remain the same.
+     *
+     * @param left - Source tag tokens
+     * @param right - Target tag tokens
+     * @returns Whether the tag tokens are equivalent
+     */
+    #areTagTokenListsEquivalent(left: Array<string>, right: Array<string>): boolean {
+        return this.#serializeTokenCounts(left) === this.#serializeTokenCounts(right);
+    }
+
+    /**
+     * Serializes token counts into a stable string for equality checks.
+     *
+     * @param values - Token list
+     * @returns Stable count signature
+     */
+    #serializeTokenCounts(values: Array<string>): string {
+        const counts = new Map<string, number>();
+
+        for (const value of values) {
+            counts.set(value, (counts.get(value) || 0) + 1);
+        }
+
+        return JSON.stringify(
+            [...counts.entries()]
+                .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+                .map(([key, count]) => ({ key, count })),
+        );
     }
 
     /**

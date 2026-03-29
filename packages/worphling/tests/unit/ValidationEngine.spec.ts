@@ -128,7 +128,51 @@ describe("ValidationEngine", () => {
         expect(findIssuesByType(issues, "invalid-placeholder")).toHaveLength(0);
     });
 
-    it("reports ICU mismatch when plural option keys change", () => {
+    it("accepts ICU placeholder reordering across languages", () => {
+        const issues = createValidationEngine().validate(
+            createInput({
+                sourceLocaleFile: {
+                    search: {
+                        summary: "{resultCount, number} results for {query}",
+                    },
+                },
+                targetLocaleFiles: {
+                    tr: {
+                        search: {
+                            summary: "{query} için {resultCount, number} sonuç",
+                        },
+                    },
+                },
+            }),
+        );
+
+        expect(findIssuesByType(issues, "invalid-placeholder")).toHaveLength(0);
+        expect(findIssuesByType(issues, "invalid-icu")).toHaveLength(0);
+    });
+
+    it("accepts plural messages with extra locale-specific target branches", () => {
+        const issues = createValidationEngine().validate(
+            createInput({
+                sourceLocaleFile: {
+                    notifications: {
+                        count: "{count, plural, =0 {no notifications} =1 {one notification} other {# notifications}}",
+                    },
+                },
+                targetLocaleFiles: {
+                    ru: {
+                        notifications: {
+                            count: "{count, plural, =0 {нет уведомлений} =1 {одно уведомление} few {# уведомления} many {# уведомлений} other {# уведомления}}",
+                        },
+                    },
+                },
+            }),
+        );
+
+        expect(findIssuesByType(issues, "invalid-placeholder")).toHaveLength(0);
+        expect(findIssuesByType(issues, "invalid-icu")).toHaveLength(0);
+    });
+
+    it("reports ICU mismatch when plural option keys required by source are removed", () => {
         const issues = createValidationEngine().validate(
             createInput({
                 sourceLocaleFile: {
@@ -179,6 +223,34 @@ describe("ValidationEngine", () => {
         expect(findIssuesByType(issues, "invalid-placeholder")).toHaveLength(1);
     });
 
+    it("reports placeholder mismatch when a placeholder is hardcoded to a literal value", () => {
+        const issues = createValidationEngine().validate(
+            createInput({
+                sourceLocaleFile: {
+                    markets: {
+                        title: "{symbol} price",
+                    },
+                },
+                targetLocaleFiles: {
+                    fa: {
+                        markets: {
+                            title: "قیمت BTC",
+                        },
+                    },
+                },
+            }),
+        );
+
+        expect(findIssuesByType(issues, "invalid-placeholder")).toEqual([
+            expect.objectContaining<Partial<LocaleIssue>>({
+                type: "invalid-placeholder",
+                locale: "fa",
+                key: "markets.title",
+                severity: "error",
+            }),
+        ]);
+    });
+
     it("reports invalid ICU when the target message is syntactically broken", () => {
         const issues = createValidationEngine().validate(
             createInput({
@@ -207,6 +279,29 @@ describe("ValidationEngine", () => {
         ]);
     });
 
+    it("reports ICU mismatch when select structure is removed entirely", () => {
+        const issues = createValidationEngine().validate(
+            createInput({
+                sourceLocaleFile: {
+                    orders: {
+                        closeMessage:
+                            "Order {closeType, select, market {closed at market} limit {closed at limit price} other {closed}}",
+                    },
+                },
+                targetLocaleFiles: {
+                    fa: {
+                        orders: {
+                            closeMessage: "سفارش بسته شد",
+                        },
+                    },
+                },
+            }),
+        );
+
+        expect(findIssuesByType(issues, "invalid-placeholder")).toHaveLength(1);
+        expect(findIssuesByType(issues, "invalid-icu")).toHaveLength(1);
+    });
+
     it("accepts nested rich-text tags when structure is preserved", () => {
         const issues = createValidationEngine().validate(
             createInput({
@@ -219,6 +314,29 @@ describe("ValidationEngine", () => {
                     fa: {
                         profile: {
                             greeting: "سلام <bold>{name}</bold>، <link><italic>پروفایل</italic> شما</link> را باز کنید.",
+                        },
+                    },
+                },
+            }),
+        );
+
+        expect(findIssuesByType(issues, "invalid-tag")).toHaveLength(0);
+        expect(findIssuesByType(issues, "invalid-placeholder")).toHaveLength(0);
+        expect(findIssuesByType(issues, "invalid-icu")).toHaveLength(0);
+    });
+
+    it("accepts rich-text tags reordered around other placeholders", () => {
+        const issues = createValidationEngine().validate(
+            createInput({
+                sourceLocaleFile: {
+                    referral: {
+                        cta: "{brandName} referral program <highlight>now live</highlight>",
+                    },
+                },
+                targetLocaleFiles: {
+                    ru: {
+                        referral: {
+                            cta: "К <highlight>реферальной программе</highlight> {brandName}",
                         },
                     },
                 },
