@@ -3,6 +3,15 @@ import pc from "picocolors";
 
 import type { CliFlags, CommandName, ReportFormat } from "../types.js";
 
+import {
+    CLI_COMMAND_DEFINITIONS,
+    CLI_HELP_EXAMPLES,
+    CLI_OPTION_DEFINITIONS,
+    createMinimistConfiguration,
+    isCliCommandName,
+    isCliReportFormat,
+} from "./cliSchema.js";
+
 /**
  * Parses command-line arguments into normalized CLI flags and renders the
  * user-facing CLI help output.
@@ -13,7 +22,7 @@ import type { CliFlags, CommandName, ReportFormat } from "../types.js";
  * worphling help
  * worphling check
  * worphling translate --write
- * worphling sync --ci --fail-on-changes
+ * worphling sync --fail-on-changes
  * worphling report --report-format json
  * ```
  *
@@ -24,7 +33,6 @@ import type { CliFlags, CommandName, ReportFormat } from "../types.js";
  * - `--locales`
  * - `--report-format`
  * - `--report-file`
- * - `--ci`
  * - `--fail-on-changes`
  * - `--fail-on-warnings`
  * - `--help`
@@ -55,23 +63,7 @@ export class Cli {
      * @returns Parsed CLI flags
      */
     #detectFlags(): CliFlags {
-        const args = minimist(process.argv.slice(2), {
-            string: ["config", "locales", "report-format", "report-file"],
-            boolean: ["dry-run", "write", "ci", "fail-on-changes", "fail-on-warnings", "help"],
-            default: {
-                "dry-run": false,
-                write: false,
-                ci: false,
-                "fail-on-changes": false,
-                "fail-on-warnings": false,
-                help: false,
-            },
-            alias: {
-                c: "config",
-                h: "help",
-            },
-        });
-
+        const args = minimist(process.argv.slice(2), createMinimistConfiguration());
         const command = this.#resolveCommand(args._[0], Boolean(args.help));
         const locales = this.#parseLocales(args.locales);
         const reportFormat = this.#parseReportFormat(args["report-format"]);
@@ -107,14 +99,7 @@ export class Cli {
             return "help";
         }
 
-        if (
-            value === "help" ||
-            value === "check" ||
-            value === "translate" ||
-            value === "fix" ||
-            value === "sync" ||
-            value === "report"
-        ) {
+        if (isCliCommandName(value)) {
             return value;
         }
 
@@ -157,7 +142,7 @@ export class Cli {
             return undefined;
         }
 
-        if (reportFormat === "json" || reportFormat === "markdown") {
+        if (isCliReportFormat(reportFormat)) {
             return reportFormat;
         }
 
@@ -199,33 +184,69 @@ export class Cli {
             "  worphling <command> [options]",
             "",
             section("Commands"),
-            `  ${pc.green("help")}         Show this help message`,
-            `  ${pc.green("check")}        Analyze locale files without changing them`,
-            `  ${pc.green("translate")}    Translate missing and modified keys`,
-            `  ${pc.green("fix")}          Remove extra keys from target locales`,
-            `  ${pc.green("sync")}         Translate and clean locale files in one run`,
-            `  ${pc.green("report")}       Generate a standalone report`,
+            ...Cli.#renderCommandLines(),
             "",
             section("Options"),
-            "  -c, --config <path>            Use a specific config file",
-            "  -h, --help                     Show help",
-            "      --write                    Apply changes to disk",
-            "      --dry-run                  Run without writing files",
-            "      --ci                       Enable CI mode",
-            "      --locales <a,b,c>          Restrict execution to specific locales",
-            "      --report-file <path>       Write a report file",
-            "      --report-format <format>   Force report format: json | markdown",
-            "      --fail-on-changes          Exit non-zero when changes are detected",
-            "      --fail-on-warnings         Exit non-zero when warnings are present",
+            ...Cli.#renderOptionLines(),
             "",
             section("Examples"),
-            `  ${pc.yellow("worphling check")}`,
-            `  ${pc.yellow("worphling check --ci")}`,
-            `  ${pc.yellow("worphling sync --write")}`,
-            `  ${pc.yellow("worphling report --report-file ./artifacts/worphling-report.md")}`,
+            ...Cli.#renderExampleLines(),
             "",
             pc.dim("Config file: worphling.config.mjs or worphling.config.js"),
             "",
         ].join("\n");
+    }
+
+    /**
+     * Renders command help lines from the shared command schema.
+     *
+     * @returns Formatted command lines
+     */
+    static #renderCommandLines(): Array<string> {
+        const longestCommandLength = Math.max(...CLI_COMMAND_DEFINITIONS.map((command) => command.name.length));
+
+        return CLI_COMMAND_DEFINITIONS.map((command) => {
+            const paddedCommandName = command.name.padEnd(longestCommandLength + 4, " ");
+
+            return `  ${pc.green(paddedCommandName)}${command.description}`;
+        });
+    }
+
+    /**
+     * Renders option help lines from the shared option schema.
+     *
+     * @returns Formatted option lines
+     */
+    static #renderOptionLines(): Array<string> {
+        const renderedLabels = CLI_OPTION_DEFINITIONS.map((option) => Cli.#renderOptionLabel(option));
+        const longestLabelLength = Math.max(...renderedLabels.map((label) => label.length));
+
+        return CLI_OPTION_DEFINITIONS.map((option, index) => {
+            const label = renderedLabels[index].padEnd(longestLabelLength + 4, " ");
+
+            return `  ${label}${option.description}`;
+        });
+    }
+
+    /**
+     * Renders example help lines from the shared example schema.
+     *
+     * @returns Formatted example lines
+     */
+    static #renderExampleLines(): Array<string> {
+        return CLI_HELP_EXAMPLES.map((example) => `  ${pc.yellow(example)}`);
+    }
+
+    /**
+     * Renders a single option label for help output.
+     *
+     * @param option - Option definition
+     * @returns Rendered option label
+     */
+    static #renderOptionLabel(option: (typeof CLI_OPTION_DEFINITIONS)[number]): string {
+        const shortPrefix = option.short ? `-${option.short}, ` : "    ";
+        const valueSuffix = option.type === "string" ? ` <${option.valueLabel || "value"}>` : "";
+
+        return `${shortPrefix}--${option.name}${valueSuffix}`;
     }
 }
