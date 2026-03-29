@@ -1,4 +1,4 @@
-import { EXAMPLE_NEXT_INTL_INPUT, EXAMPLE_NEXT_INTL_OUTPUT } from "../core/examples.js";
+import { EXAMPLE_NEXT_INTL_INPUT, EXAMPLE_NEXT_INTL_OUTPUT } from "../examples.js";
 import type { TranslationPluginContract, TranslationPluginPromptContext, ValidationConfig } from "../types.js";
 
 /**

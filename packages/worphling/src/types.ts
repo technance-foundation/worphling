@@ -221,26 +221,31 @@ export interface TranslationConfig {
 }
 
 /**
- * CI-specific runtime configuration.
+ * Runtime policy configuration.
+ *
+ * These settings control reporting and failure behavior for normal runs,
+ * regardless of whether the caller is local development, CI, or another
+ * automation environment.
  */
-export interface CiConfig {
+export interface RuntimeConfig {
     /**
-     * Whether the runtime is operating in CI mode.
-     */
-    mode: boolean;
-
-    /**
-     * Optional file path where a machine-readable report should be written.
+     * Optional default report output path.
+     *
+     * CLI `--report-file` should take precedence when provided.
      */
     reportFile?: string;
 
     /**
-     * Whether the process should fail when files were changed or would change.
+     * Whether the process should fail when changes are detected.
+     *
+     * CLI `--fail-on-changes` should take precedence when provided.
      */
     failOnChanges: boolean;
 
     /**
      * Whether warnings should cause the process to fail.
+     *
+     * CLI `--fail-on-warnings` should take precedence when provided.
      */
     failOnWarnings: boolean;
 }
@@ -250,7 +255,7 @@ export interface CiConfig {
  *
  * This interface is intentionally aligned with the new v3 config format and is
  * expected to be the single source of truth for configuration across the
- * runtime, CLI, CI integration, and reporting layers.
+ * runtime, CLI, and reporting layers.
  */
 export interface Config {
     /**
@@ -303,9 +308,9 @@ export interface Config {
     translation: TranslationConfig;
 
     /**
-     * CI behavior configuration.
+     * Runtime reporting and failure policy configuration.
      */
-    ci: CiConfig;
+    runtime: RuntimeConfig;
 }
 
 /**
@@ -357,11 +362,6 @@ export interface CliFlags {
      * Optional explicit report output path.
      */
     reportFile?: string;
-
-    /**
-     * Whether CI mode should be forced for this run.
-     */
-    ci: boolean;
 
     /**
      * Whether the process should fail when changes are detected.
@@ -737,18 +737,16 @@ export enum ExitCode {
 
     /**
      * Validation failed.
+     *
+     * This includes structural validation failures as well as runs configured
+     * to fail when changes or warnings are detected.
      */
     ValidationError = 3,
 
     /**
-     * Changes were detected and configured policy required failure.
-     */
-    ChangesDetected = 4,
-
-    /**
      * Translation provider failed.
      */
-    ProviderError = 5,
+    ProviderError = 4,
 }
 
 /**
@@ -794,6 +792,9 @@ export interface Logger {
     error(message: string): void;
 }
 
+/**
+ * Snapshot configuration.
+ */
 export interface SnapshotConfig {
     /**
      * Snapshot file path used for source-change detection.

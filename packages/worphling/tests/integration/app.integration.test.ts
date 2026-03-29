@@ -81,11 +81,10 @@ test("fix removes extra keys and writes using the configured filePattern extensi
     }
 });
 
-test("ci mode writes a JSON report file for a non-report command", async () => {
+test("check writes a JSON report file for a non-report command", async () => {
     const workspace = createIntegrationWorkspace({
         config: {
-            ci: {
-                mode: true,
+            runtime: {
                 reportFile: undefined,
                 failOnChanges: false,
                 failOnWarnings: false,
@@ -113,7 +112,6 @@ test("ci mode writes a JSON report file for a non-report command", async () => {
     try {
         const exitCode = await workspace.run({
             command: "check",
-            ci: true,
             reportFile: workspace.reportFilePath,
         });
 
@@ -143,8 +141,7 @@ test("check reports modified keys from snapshot state", async () => {
                 failOnMissingKeys: false,
                 failOnModifiedSource: true,
             },
-            ci: {
-                mode: false,
+            runtime: {
                 reportFile: undefined,
                 failOnChanges: false,
                 failOnWarnings: false,

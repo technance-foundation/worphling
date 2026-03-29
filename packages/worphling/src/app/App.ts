@@ -140,7 +140,6 @@ export class App {
     async run(): Promise<ExitCode> {
         const runtimeConfig = this.#config.config;
         const flags = this.#config.flags;
-        const ciMode = flags.ci || runtimeConfig.ci.mode;
 
         const allLocaleFiles = this.#localeRepository.readAll();
         const sourceLocale = runtimeConfig.sourceLocale;
@@ -156,12 +155,12 @@ export class App {
 
         const diffResult = this.#runPlanner.analyze(sourceLocaleFile, targetLocaleFiles, snapshot);
         const plan = this.#runPlanner.createPlan(diffResult, flags.command);
-        const executionPolicy = this.#resolveExecutionPolicy(ciMode);
+        const executionPolicy = this.#resolveExecutionPolicy();
         const requiresTranslation = this.#planRequiresTranslation(plan.actions);
         const shouldBootstrapSnapshot = executionPolicy.writeFiles && snapshot === null;
 
         this.#runConsoleReporter.logDetectedChanges(diffResult);
-        this.#runConsoleReporter.logExecutionMode(executionPolicy, ciMode);
+        this.#runConsoleReporter.logExecutionMode(executionPolicy);
 
         let updatedTargetLocaleFiles = { ...targetLocaleFiles };
         let translatedKeys: FlatLocaleFiles = {};
@@ -234,9 +233,9 @@ export class App {
             hasProviderFailure: providerIssues.length > 0,
         });
 
-        this.#emitReport(report, ciMode);
+        this.#emitReport(report);
 
-        return this.#resolveExitCode(report, ciMode);
+        return this.#resolveExitCode(report);
     }
 
     /**
@@ -259,10 +258,9 @@ export class App {
      * Resolves whether the current command is allowed to execute planned
      * mutations and write files.
      *
-     * @param ciMode - Whether CI mode is active
      * @returns Execution policy
      */
-    #resolveExecutionPolicy(ciMode: boolean): {
+    #resolveExecutionPolicy(): {
         executePlan: boolean;
         writeFiles: boolean;
         reason?: string;
@@ -277,15 +275,7 @@ export class App {
             };
         }
 
-        const writeAllowed = flags.write && !flags.dryRun && !ciMode;
-
-        if (ciMode) {
-            return {
-                executePlan: true,
-                writeFiles: false,
-                reason: "CI mode is active. Running in non-mutating mode.",
-            };
-        }
+        const writeAllowed = flags.write && !flags.dryRun;
 
         if (flags.dryRun) {
             return {
@@ -432,8 +422,6 @@ export class App {
      * Snapshot is NOT saved when:
      * - only extra keys were removed and a snapshot already exists
      *
-     * Snapshot must never be saved in non-mutating modes such as CI or dry-run.
-     *
      * @param actions - Ordered plan actions
      * @param snapshot - Previously loaded snapshot, or null when none exists
      * @returns Whether the snapshot should be saved after a mutating run
@@ -444,7 +432,6 @@ export class App {
         );
 
         const isBootstrap = snapshot === null;
-
         const hasCleanupOnly = actions.some((action) => action.type === "remove-extra-keys");
 
         return hasTranslationWork || (isBootstrap && hasCleanupOnly);
@@ -453,13 +440,14 @@ export class App {
     /**
      * Emits the run report to console and optionally to a report file.
      *
+     * CLI flags take precedence over config-level runtime defaults.
+     *
      * @param report - Structured run report
-     * @param ciMode - Whether CI mode is active
      */
-    #emitReport(report: RunReport, ciMode: boolean): void {
+    #emitReport(report: RunReport): void {
         const flags = this.#config.flags;
         const runtimeConfig = this.#config.config;
-        const reportFilePath = flags.reportFile || (ciMode ? runtimeConfig.ci.reportFile : undefined);
+        const reportFilePath = flags.reportFile ?? runtimeConfig.runtime.reportFile;
 
         if (flags.command === "report") {
             const consoleReportFormat = this.#resolveReportFormat(flags.reportFormat, undefined, "markdown");
@@ -483,17 +471,16 @@ export class App {
      * Resolves the final process exit code from the generated report and the
      * active policy flags.
      *
-     * CI-specific fail policies are only applied when CI mode is enabled.
+     * CLI flags take precedence over config-level runtime defaults.
      *
      * @param report - Structured run report
-     * @param ciMode - Whether CI mode is active
      * @returns Process exit code
      */
-    #resolveExitCode(report: RunReport, ciMode: boolean): ExitCode {
+    #resolveExitCode(report: RunReport): ExitCode {
         const flags = this.#config.flags;
         const runtimeConfig = this.#config.config;
-        const failOnWarnings = flags.failOnWarnings || (ciMode && runtimeConfig.ci.failOnWarnings);
-        const failOnChanges = flags.failOnChanges || (ciMode && runtimeConfig.ci.failOnChanges);
+        const failOnWarnings = flags.failOnWarnings ?? runtimeConfig.runtime.failOnWarnings;
+        const failOnChanges = flags.failOnChanges ?? runtimeConfig.runtime.failOnChanges;
 
         if (report.issues.some((issue) => issue.type === "provider-error")) {
             return ExitCode.ProviderError;
@@ -508,7 +495,7 @@ export class App {
         }
 
         if (failOnChanges && report.summary.hasChanges) {
-            return ExitCode.ChangesDetected;
+            return ExitCode.ValidationError;
         }
 
         return ExitCode.Success;

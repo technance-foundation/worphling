@@ -69,7 +69,7 @@ export interface CliIntegrationWorkspace {
     snapshotFilePath: string;
 
     /**
-     * CI report file path used by the generated config.
+     * Default report file path used by the generated config and tests.
      */
     reportFilePath: string;
 
@@ -169,9 +169,8 @@ export function createCliIntegrationWorkspace(input: CreateCliIntegrationWorkspa
             concurrency: 1,
             exactLength: false,
         },
-        ci: {
-            mode: false,
-            reportFile: "./artifacts/worphling-report.json",
+        runtime: {
+            reportFile: undefined,
             failOnChanges: false,
             failOnWarnings: false,
         },
@@ -204,9 +203,9 @@ export function createCliIntegrationWorkspace(input: CreateCliIntegrationWorkspa
             ...baseConfig.translation,
             ...input.config?.translation,
         },
-        ci: {
-            ...baseConfig.ci,
-            ...input.config?.ci,
+        runtime: {
+            ...baseConfig.runtime,
+            ...input.config?.runtime,
         },
     };
 

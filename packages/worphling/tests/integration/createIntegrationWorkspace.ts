@@ -45,7 +45,7 @@ export interface IntegrationWorkspace {
     snapshotFilePath: string;
 
     /**
-     * CI report file path used by the generated config.
+     * Default report file path used by the generated config and tests.
      */
     reportFilePath: string;
 
@@ -145,9 +145,8 @@ export function createIntegrationWorkspace(input: CreateIntegrationWorkspaceInpu
             concurrency: 1,
             exactLength: false,
         },
-        ci: {
-            mode: false,
-            reportFile: reportFilePath,
+        runtime: {
+            reportFile: undefined,
             failOnChanges: false,
             failOnWarnings: false,
         },
@@ -180,9 +179,9 @@ export function createIntegrationWorkspace(input: CreateIntegrationWorkspaceInpu
             ...baseConfig.translation,
             ...input.config?.translation,
         },
-        ci: {
-            ...baseConfig.ci,
-            ...input.config?.ci,
+        runtime: {
+            ...baseConfig.runtime,
+            ...input.config?.runtime,
         },
     };
 
@@ -220,7 +219,6 @@ export function createIntegrationWorkspace(input: CreateIntegrationWorkspaceInpu
                     command: "check",
                     dryRun: false,
                     write: false,
-                    ci: false,
                     failOnChanges: false,
                     failOnWarnings: false,
                     ...flags,

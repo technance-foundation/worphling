@@ -20,13 +20,13 @@ const config = {
     provider: {
         name: "openai",
         apiKey,
-        model: "gpt-5.1-2025-11-13", // or your preferred model
+        model: "gpt-5.1-2025-11-13",
         temperature: 0,
     },
 
-    // --- Plugin (ICU is default, next-intl adds tag rules) ---
+    // --- Plugin ---
     plugin: {
-        name: "none", // or "none"
+        name: "none",
     },
 
     // --- Snapshot ---
@@ -46,8 +46,7 @@ const config = {
         preservePlaceholders: true,
         preserveIcuSyntax: true,
         preserveHtmlTags: true,
-
-        failOnMissingKeys: false, // set true for CI
+        failOnMissingKeys: false,
         failOnExtraKeys: false,
         failOnModifiedSource: false,
     },
@@ -60,9 +59,8 @@ const config = {
         exactLength: false,
     },
 
-    // --- CI ---
-    ci: {
-        mode: false,
+    // --- Reporting / failure behavior ---
+    runtime: {
         reportFile: "./.worphling/worphling-report.json",
         failOnChanges: false,
         failOnWarnings: false,

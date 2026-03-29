@@ -52,22 +52,10 @@ export class RunConsoleReporter {
      * Logs the resolved execution mode for the current run.
      *
      * @param executionPolicy - Resolved execution policy
-     * @param ciMode - Whether CI mode is active
      */
-    logExecutionMode(
-        executionPolicy: {
-            executePlan: boolean;
-            writeFiles: boolean;
-            reason?: string;
-        },
-        ciMode: boolean,
-    ): void {
+    logExecutionMode(executionPolicy: { executePlan: boolean; writeFiles: boolean; reason?: string }): void {
         if (executionPolicy.reason) {
             this.#logger.warn(executionPolicy.reason);
-        }
-
-        if (ciMode && !executionPolicy.reason?.includes("CI mode is active")) {
-            this.#logger.warn("CI mode is active. Locale files will not be modified.");
         }
 
         if (!executionPolicy.executePlan) {

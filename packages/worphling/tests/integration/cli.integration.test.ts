@@ -138,7 +138,7 @@ test("cli check exits with ValidationError when missing keys are configured as e
     }
 });
 
-test("cli check --fail-on-changes returns ChangesDetected when changes exist", async () => {
+test("cli check --fail-on-changes returns ValidationError when changes exist", async () => {
     const workspace = createCliIntegrationWorkspace({
         config: {
             validation: {
@@ -164,7 +164,7 @@ test("cli check --fail-on-changes returns ChangesDetected when changes exist", a
     try {
         const result = await workspace.runCli(["check", "--fail-on-changes", "--report-file", workspace.reportFilePath]);
 
-        assert.equal(result.exitCode, ExitCode.ChangesDetected);
+        assert.equal(result.exitCode, ExitCode.ValidationError);
         assert.equal(result.stderr, "");
         assert.match(result.stdout, /Found 1 missing translations across all languages\./);
 
@@ -253,8 +253,15 @@ test("cli check --locales limits analysis to selected locales", async () => {
     }
 });
 
-test("cli check in CI mode writes a JSON report file", async () => {
+test("cli check writes a JSON report file from runtime config", async () => {
     const workspace = createCliIntegrationWorkspace({
+        config: {
+            runtime: {
+                reportFile: "./artifacts/worphling-report.json",
+                failOnChanges: false,
+                failOnWarnings: false,
+            },
+        },
         locales: {
             en: {
                 greeting: "Hello",
@@ -267,7 +274,7 @@ test("cli check in CI mode writes a JSON report file", async () => {
     });
 
     try {
-        const result = await workspace.runCli(["check", "--ci", "--report-file", workspace.reportFilePath]);
+        const result = await workspace.runCli(["check"]);
 
         assert.equal(result.exitCode, ExitCode.Success);
         assert.equal(result.stderr, "");

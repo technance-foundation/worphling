@@ -2,7 +2,7 @@
 
 **Keep your translations in sync with AI-powered automation.**
 
-Worphling is a CLI for managing localization files end-to-end. It detects missing, outdated, and unused translations, automatically translates new content with AI models such as OpenAI, validates ICU messages and rich-text tags, and produces CI-friendly reports.
+Worphling is a CLI for managing localization files end-to-end. It detects missing, outdated, and unused translations, automatically translates new content with AI models such as OpenAI, validates ICU messages and rich-text tags, and produces structured reports suitable for CI and automation.
 
 ---
 
@@ -10,12 +10,12 @@ Worphling is a CLI for managing localization files end-to-end. It detects missin
 
 Worphling helps you:
 
-- automatically translate missing keys using AI
-- retranslate keys when the source text changes
-- remove keys that no longer exist in the source locale
-- validate placeholders, ICU messages, and rich-text tags
-- generate JSON or Markdown reports
-- run safely in CI with stable exit codes
+- Automatically translate missing keys using AI
+- Retranslate keys when the source text changes
+- Remove keys that no longer exist in the source locale
+- Validate placeholders, ICU messages, and rich-text tags
+- Generate JSON or Markdown reports
+- Run safely in CI with deterministic behavior and stable exit codes
 
 ---
 
@@ -69,11 +69,11 @@ Analyze locale files without changing them.
 worphling check
 ```
 
-Use this to detect:
+Detects:
 
 - missing translations
 - extra keys
-- source changes that require retranslation
+- source changes requiring retranslation
 - validation issues
 
 Best for CI and verification.
@@ -82,135 +82,78 @@ Best for CI and verification.
 
 ### `translate`
 
-Generate translations with AI for missing and outdated keys.
-
 ```bash
 worphling translate --write
 ```
 
-This command:
-
 - translates missing keys
-- retranslates keys whose source text changed
-- does not remove extra keys
-
-Use this when you want AI translation without cleanup.
+- retranslates modified source keys
+- does NOT remove extra keys
 
 ---
 
 ### `fix`
 
-Remove keys that no longer exist in the source locale.
-
 ```bash
 worphling fix --write
 ```
 
-This command:
-
 - removes extra keys
-- does not translate anything
-
-Use this when you only want cleanup.
+- no translation
 
 ---
 
 ### `sync`
 
-Fully synchronize locale files.
-
 ```bash
 worphling sync --write
 ```
 
-This is the recommended default command.
+Full lifecycle:
 
-It will:
-
-- translate missing keys with AI
-- retranslate outdated keys with AI
-- remove extra keys
-
-If you want one command that keeps locale files healthy, use `sync`.
+- translate missing
+- retranslate modified
+- remove extra
 
 ---
 
 ### `report`
 
-Generate a standalone report.
-
 ```bash
 worphling report --report-file ./.worphling/worphling-report.md
 ```
 
-Useful for:
-
-- CI artifacts
-- debugging translation drift
-- sharing translation status with the team
+Outputs a standalone report.
 
 ---
 
 ## Common Flags
 
+> CLI flags override config-level runtime settings.
+
 ### `--write`
 
 Apply changes to disk.
-
-```bash
-worphling sync --write
-```
-
-Without `--write`, Worphling stays read-only.
-
----
-
-### `--ci`
-
-Run in CI mode.
-
-```bash
-worphling check --ci
-```
-
-CI mode is designed to be non-mutating and deterministic.
 
 ---
 
 ### `--report-file`
 
-Write a report file.
-
 ```bash
 worphling check --report-file ./.worphling/report.json
 ```
-
-Supported output:
-
-- `.json`
-- `.md`
-- `.markdown`
 
 ---
 
 ### `--report-format`
 
-Force a report format explicitly.
-
 ```bash
-worphling report --report-format markdown --report-file ./report.out
+worphling report --report-format markdown
 ```
-
-Supported values:
-
-- `json`
-- `markdown`
 
 ---
 
 ### `--locales`
-
-Restrict execution to specific locales.
 
 ```bash
 worphling sync --locales fa,de --write
@@ -220,8 +163,6 @@ worphling sync --locales fa,de --write
 
 ### `--config`
 
-Use a specific config file.
-
 ```bash
 worphling check --config ./worphling.config.mjs
 ```
@@ -230,42 +171,61 @@ worphling check --config ./worphling.config.mjs
 
 ### `--dry-run`
 
-Run planned execution without writing files.
-
 ```bash
 worphling sync --dry-run
 ```
 
-This is useful when you want to preview what would happen.
+---
+
+### `--fail-on-changes`
+
+Fail when any diff exists.
+
+```bash
+worphling check --fail-on-changes
+```
+
+---
+
+### `--fail-on-warnings`
+
+Fail when warnings exist.
+
+```bash
+worphling check --fail-on-warnings
+```
 
 ---
 
 ## Configuration
-
-Example config:
 
 ```json
 {
     "sourceLocale": "en",
     "localesDir": "./locales",
     "filePattern": "*.json",
+
     "provider": {
         "name": "openai",
         "apiKey": "YOUR_API_KEY",
         "model": "gpt-5.1-2025-11-13",
         "temperature": 0
     },
+
     "plugin": {
         "name": "none"
     },
+
     "snapshot": {
         "file": "./.worphling/.worphling-snapshot.json"
     },
+
     "output": {
         "sortKeys": true,
         "preserveIndentation": 2,
         "trailingNewline": true
     },
+
     "validation": {
         "preservePlaceholders": true,
         "preserveIcuSyntax": true,
@@ -274,6 +234,7 @@ Example config:
         "failOnMissingKeys": true,
         "failOnModifiedSource": false
     },
+
     "translation": {
         "batchSize": 100,
         "maxRetries": 3,
@@ -281,8 +242,8 @@ Example config:
         "exactLength": false,
         "contextFile": "./translation-context.md"
     },
-    "ci": {
-        "mode": false,
+
+    "runtime": {
         "reportFile": "./.worphling/worphling-report.json",
         "failOnChanges": false,
         "failOnWarnings": false
@@ -292,228 +253,41 @@ Example config:
 
 ---
 
-## Snapshot State
+## Runtime Behavior (Important)
 
-Worphling uses a required snapshot file to detect when source messages have changed.
+The `runtime` section controls failure behavior and reporting defaults.
 
-This snapshot is part of Worphling's normal operation and should be committed to version control, similar to a lockfile.
+### Precedence
 
-Example:
-
-```json
-{
-    "snapshot": {
-        "file": "./.worphling/.worphling-snapshot.json"
-    }
-}
 ```
-
-The snapshot stores flattened source-locale values and allows Worphling to determine when existing translations need retranslation.
-
----
-
-## AI Translation
-
-Worphling can automatically translate your locale content using an AI provider.
-
-Today, the main provider is OpenAI.
-
-### Provider config
-
-```json
-{
-    "provider": {
-        "name": "openai",
-        "apiKey": "YOUR_API_KEY",
-        "model": "gpt-5.1-2025-11-13",
-        "temperature": 0
-    }
-}
-```
-
-### How translation works
-
-When you run `translate` or `sync`, Worphling will:
-
-- collect missing keys
-- collect keys that need retranslation based on the source snapshot
-- batch requests
-- execute them with bounded concurrency
-- retry failures
-- merge results deterministically
-
-### Translation context
-
-You can provide additional translation guidance with `translation.contextFile`.
-
-```json
-{
-    "translation": {
-        "contextFile": "./translation-context.md"
-    }
-}
-```
-
-This file can include:
-
-- glossary rules
-- product terminology
-- tone and voice
-- formatting requirements
-- brand language guidance
-
-Example:
-
-```md
-Use formal Persian.
-Keep financial terms consistent.
-Do not translate product names.
-Prefer concise mobile-friendly phrasing.
+CLI flags > runtime config > defaults
 ```
 
 ---
 
-## ICU Message Support
+### `failOnChanges`
 
-Worphling treats **ICU message syntax as the default message model** for translations.
+If enabled, **any detected diff (missing, extra, modified)** causes failure.
 
-That means it is designed to work well with messages such as:
-
-```txt
-Hello {name}
+```json
+{
+    "runtime": {
+        "failOnChanges": true
+    }
+}
 ```
-
-```txt
-You have {count, plural, =0 {no messages} =1 {one message} other {# messages}}.
-```
-
-```txt
-{gender, select, female {She} male {He} other {They}} is online.
-```
-
-### Why this matters
-
-AI translation is powerful, but structured messages can break if placeholders or ICU branches are changed incorrectly.
-
-Worphling helps prevent that by validating message structure before you trust the result.
 
 ---
 
-## Validation
+### `failOnWarnings`
 
-Worphling can validate translation structure to prevent broken messages.
-
-### Placeholder preservation
-
-```json
-{
-    "validation": {
-        "preservePlaceholders": true
-    }
-}
-```
-
-Example:
-
-- source: `Hello {name}`
-- target must still contain `{name}`
-
-### ICU syntax preservation
-
-```json
-{
-    "validation": {
-        "preserveIcuSyntax": true
-    }
-}
-```
-
-Example:
-
-- plural, select, and selectordinal structures must remain intact
-
-### HTML and rich-text tag preservation
-
-```json
-{
-    "validation": {
-        "preserveHtmlTags": true
-    }
-}
-```
-
-Example:
-
-- source: `Hello <bold>{name}</bold>`
-- target must preserve the tag structure
+If enabled, warnings also fail the run.
 
 ---
 
-## Plugins
+### `reportFile`
 
-Worphling uses ICU as its core message format. Plugins are only for **framework-specific behavior** layered on top of that.
-
-### `none`
-
-Default behavior.
-
-```json
-{
-    "plugin": {
-        "name": "none"
-    }
-}
-```
-
-Use this for general ICU-based translation workflows.
-
-### `next-intl`
-
-Use this when your app is built with `next-intl`.
-
-```json
-{
-    "plugin": {
-        "name": "next-intl"
-    }
-}
-```
-
-`next-intl` uses ICU messages and commonly relies on rich-text tag patterns such as:
-
-```txt
-Hello <bold>{name}</bold>
-```
-
-This plugin adds framework-specific prompting and validation behavior for those conventions.
-
----
-
-## Reports
-
-Worphling can generate structured reports for humans and machines.
-
-### JSON report
-
-```bash
-worphling check --report-file ./.worphling/worphling-report.json
-```
-
-### Markdown report
-
-```bash
-worphling report --report-file ./.worphling/worphling-report.md
-```
-
-Reports include:
-
-- command used
-- source locale
-- target locales
-- missing / extra / modified counts
-- translated key count
-- written file count
-- detected issues
+Default output file when `--report-file` is not provided.
 
 ---
 
@@ -525,73 +299,76 @@ Reports include:
 | `1`  | General runtime error |
 | `2`  | Config error          |
 | `3`  | Validation error      |
-| `4`  | Changes detected      |
-| `5`  | Provider error        |
+| `4`  | Provider error        |
+
+---
+
+### Important Design Note
+
+Worphling intentionally **does NOT use a separate "changes detected" exit code**.
+
+Instead:
+
+- `failOnChanges` → returns **ValidationError (3)**
+- `failOnWarnings` → returns **ValidationError (3)**
+
+This keeps CI behavior simple and predictable:
+
+👉 **"Anything that should fail CI = validation error"**
 
 ---
 
 ## Typical Workflows
 
-### Local development
+### Local dev
 
 ```bash
 worphling sync --write
 ```
 
-### CI validation
+---
+
+### CI
 
 ```bash
-worphling check --ci
+worphling check --fail-on-changes --report-file ./.worphling/worphling-report.json
 ```
 
-### Generate a translation report
+---
+
+### Generate report
 
 ```bash
 worphling report --report-file ./.worphling/worphling-report.md
-```
-
-### Translate only specific locales
-
-```bash
-worphling sync --locales fa,de --write
 ```
 
 ---
 
 ## Recommended Setup
 
-For most teams:
-
 ```json
 {
     "sourceLocale": "en",
     "filePattern": "*.json",
+
     "plugin": {
         "name": "none"
     },
+
     "snapshot": {
         "file": "./.worphling/.worphling-snapshot.json"
     },
+
     "validation": {
         "preservePlaceholders": true,
         "preserveIcuSyntax": true,
         "preserveHtmlTags": true,
-        "failOnExtraKeys": false,
-        "failOnMissingKeys": true,
-        "failOnModifiedSource": false
+        "failOnMissingKeys": true
     },
-    "ci": {
-        "reportFile": "./.worphling/worphling-report.json"
-    }
-}
-```
 
-For `next-intl` projects:
-
-```json
-{
-    "plugin": {
-        "name": "next-intl"
+    "runtime": {
+        "reportFile": "./.worphling/worphling-report.json",
+        "failOnChanges": true
     }
 }
 ```
