@@ -84,7 +84,6 @@ export class Cli {
             locales,
             reportFormat,
             reportFile: this.#getOptionalString(args["report-file"]),
-            ci: Boolean(args.ci),
             failOnChanges: Boolean(args["fail-on-changes"]),
             failOnWarnings: Boolean(args["fail-on-warnings"]),
         };
