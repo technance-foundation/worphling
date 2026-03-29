@@ -1,5 +1,23 @@
 # @technance/worphling
 
+## 4.0.3
+
+### Patch Changes
+
+- [`bef411d`](https://github.com/technance-foundation/worphling/commit/bef411d4494c4ca321b8fd1761dccb41e3897de0) Thanks [@inf1nite-lo0p](https://github.com/inf1nite-lo0p)! - Improve OpenAI translation prompt reliability and stop writing debug request artifacts.
+
+  ### What changed
+
+  - strengthened the OpenAI system prompt to better preserve ICU structure
+  - added explicit guidance to preserve plural `#` tokens in every matching branch
+  - added stronger per-key verification instructions before the model responds
+  - clarified that source text should not remain untranslated unless it is already naturally correct
+  - removed writing outbound OpenAI request payloads into local `artifacts/` files
+
+  ### Why
+
+  This improves translation correctness for structured ICU messages, especially plural branches where `#` must be preserved exactly, and avoids generating provider request artifact files during normal runs.
+
 ## 4.0.2
 
 ### Patch Changes
