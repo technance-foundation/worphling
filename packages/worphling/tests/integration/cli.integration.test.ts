@@ -138,7 +138,7 @@ test("cli check exits with ValidationError when missing keys are configured as e
     }
 });
 
-test("cli check --fail-on-changes returns ChangesDetected when changes exist", async () => {
+test("cli check --fail-on-changes returns ValidationError when changes exist", async () => {
     const workspace = createCliIntegrationWorkspace({
         config: {
             validation: {
@@ -164,7 +164,7 @@ test("cli check --fail-on-changes returns ChangesDetected when changes exist", a
     try {
         const result = await workspace.runCli(["check", "--fail-on-changes", "--report-file", workspace.reportFilePath]);
 
-        assert.equal(result.exitCode, ExitCode.ChangesDetected);
+        assert.equal(result.exitCode, ExitCode.ValidationError);
         assert.equal(result.stderr, "");
         assert.match(result.stdout, /Found 1 missing translations across all languages\./);
 
