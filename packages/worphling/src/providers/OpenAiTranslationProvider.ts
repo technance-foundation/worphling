@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import { OpenAI } from "openai";
 
 import { DEFAULT_OPENAI_MODEL, DEFAULT_PROVIDER_TEMPERATURE } from "../constants.js";
@@ -176,6 +174,7 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
             "Do not add, remove, rename, reorder, or restructure keys.",
             "Each input key must produce exactly one translated string value at the same key path.",
             "Do not omit keys, even if the source text is repetitive, short, ambiguous, or already looks localized.",
+            "Do not leave source text untranslated unless it is already naturally correct in the target language.",
             "Preserve ICU message syntax exactly when present.",
             "Preserve ICU argument names exactly.",
             "Preserve plural, select, and selectordinal structure exactly when required by the source message.",
@@ -197,6 +196,20 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
             "When the source contains variables such as `{name}`, `{count}`, `{symbol}`, `{query}`, `{price}`, or `{appName}`, keep them exactly as-is.",
             "When the source uses ICU select, plural, or selectordinal, translate only the human-readable branch text and preserve the control structure.",
             "When the source contains rich-text tags such as `<bold>` or `<link>`, translate only the text around and inside the tags while preserving the tags themselves.",
+            "Inside plural branches, `#` is structural ICU syntax and must be preserved exactly wherever it appears in the source.",
+            "If a source plural branch contains `#`, the corresponding target branch must also contain `#`.",
+            "Never replace `#` with words such as 'one', 'single', or a hardcoded number.",
+            "Never drop `#` from a branch just because the translation sounds natural without it.",
+            "For example, if the source is `{count, plural, =0 {No trading pairs} =1 {# Trading Pair} other {# Trading Pairs}}`, then the target `=1` branch must still contain `#`.",
+            "Bad example: `{count, plural, =0 {لا توجد أزواج تداول} =1 {زوج تداول واحد} other {# أزواج تداول}}` because `#` was removed from the `=1` branch.",
+            "Good example: `{count, plural, =0 {لا توجد أزواج تداول} =1 {# زوج تداول} other {# أزواج تداول}}` because `#` was preserved.",
+            "Before responding, verify every key one by one:",
+            "- the JSON shape is unchanged",
+            "- all keys are present",
+            "- placeholders are preserved exactly",
+            "- ICU branch keys are preserved",
+            "- every source branch that contains `#` still contains `#` in the target",
+            "- tags are preserved exactly",
             ...promptContext.additionalInstructions,
             exactLength
                 ? "Translated responses should not exceed the length of their input when reasonably possible."
@@ -226,9 +239,6 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
     /**
      * Sends a single translation batch to OpenAI and returns the raw JSON
      * response text.
-     *
-     * This method also persists the exact outbound request body to a debug file
-     * so the request can be replayed with curl during timeout investigations.
      *
      * @param batch - Translation batch
      * @param config - Resolved runtime configuration
@@ -264,10 +274,6 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
             temperature,
         };
 
-        const debugRequestFilePath = this.#writeDebugRequestFile(batch.locale, requestBody);
-
-        this.#logger.info(`Wrote OpenAI debug request for locale "${batch.locale}" to ${debugRequestFilePath}.`);
-
         const startedAt = Date.now();
 
         const response = await this.#client.chat.completions.create(requestBody);
@@ -279,29 +285,6 @@ export class OpenAiTranslationProvider implements TranslationProviderContract {
         const content = response.choices[0]?.message?.content;
 
         return content || "{}";
-    }
-
-    /**
-     * Writes the exact outbound OpenAI request body to a local debug file.
-     *
-     * This makes it easy to replay the request with curl and distinguish
-     * SDK/runtime issues from payload-specific issues.
-     *
-     * @param locale - Batch locale
-     * @param requestBody - Exact OpenAI request body
-     * @returns Absolute debug file path
-     */
-    #writeDebugRequestFile(locale: string, requestBody: object): string {
-        const artifactsDirectoryPath = path.resolve("artifacts");
-        const filePath = path.join(artifactsDirectoryPath, `openai-request-${locale}.json`);
-
-        if (!fs.existsSync(artifactsDirectoryPath)) {
-            fs.mkdirSync(artifactsDirectoryPath, { recursive: true });
-        }
-
-        fs.writeFileSync(filePath, `${JSON.stringify(requestBody, null, 2)}\n`, "utf-8");
-
-        return filePath;
     }
 
     /**
