@@ -303,21 +303,6 @@ Default output file when `--report-file` is not provided.
 
 ---
 
-### Important Design Note
-
-Worphling intentionally **does NOT use a separate "changes detected" exit code**.
-
-Instead:
-
-- `failOnChanges` → returns **ValidationError (3)**
-- `failOnWarnings` → returns **ValidationError (3)**
-
-This keeps CI behavior simple and predictable:
-
-👉 **"Anything that should fail CI = validation error"**
-
----
-
 ## Typical Workflows
 
 ### Local dev
