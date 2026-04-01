@@ -646,6 +646,21 @@ export interface SnapshotFile {
 }
 
 /**
+ * Structured summary of files written during the run.
+ */
+export interface RunOutputSummary {
+    /**
+     * File paths of locale files written during the run.
+     */
+    writtenLocaleFiles: Array<string>;
+
+    /**
+     * File path of the snapshot file written during the run, when applicable.
+     */
+    writtenSnapshotFile?: string;
+}
+
+/**
  * Summary of a completed run.
  */
 export interface RunSummary {
@@ -709,6 +724,11 @@ export interface RunReport {
      * Top-level summary of the run.
      */
     summary: RunSummary;
+
+    /**
+     * Structured summary of files written during the run.
+     */
+    outputs: RunOutputSummary;
 
     /**
      * Structured issues detected during the run.

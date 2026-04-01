@@ -158,6 +158,8 @@ export class App {
         const executionPolicy = this.#resolveExecutionPolicy();
         const requiresTranslation = this.#planRequiresTranslation(plan.actions);
         const shouldBootstrapSnapshot = executionPolicy.writeFiles && snapshot === null;
+        const shouldWriteSnapshot =
+            executionPolicy.writeFiles && (snapshot === null || this.#shouldSaveSnapshot(plan.actions, snapshot));
 
         this.#runConsoleReporter.logDetectedChanges(diffResult);
         this.#runConsoleReporter.logExecutionMode(executionPolicy);
@@ -192,7 +194,7 @@ export class App {
                     writtenFileCount = Object.keys(localeFilesToWrite).length;
                 }
 
-                if (executionPolicy.writeFiles && (snapshot === null || this.#shouldSaveSnapshot(plan.actions, snapshot))) {
+                if (shouldWriteSnapshot) {
                     this.#snapshotRepository.save(runtimeConfig.snapshot.file, sourceLocale, sourceLocaleFile);
                 }
             } catch (error) {
@@ -222,6 +224,15 @@ export class App {
             ...providerIssues,
         ];
 
+        const localesToWrite = this.#runPlanner.collectLocalesToWrite(plan);
+        const outputs = {
+            writtenLocaleFiles:
+                executionPolicy.writeFiles && writtenFileCount > 0
+                    ? localesToWrite.map((locale) => this.#resolveLocaleFilePath(locale))
+                    : [],
+            writtenSnapshotFile: shouldWriteSnapshot ? runtimeConfig.snapshot.file : undefined,
+        };
+
         const report = this.#runReporter.buildReport({
             command: flags.command,
             sourceLocale,
@@ -229,6 +240,7 @@ export class App {
             diffResult,
             translatedCount,
             writtenFileCount,
+            outputs,
             issues,
             hasProviderFailure: providerIssues.length > 0,
         });
@@ -553,5 +565,20 @@ export class App {
      */
     #countFlatLocaleEntries(localeFiles: FlatLocaleFiles): number {
         return Object.values(localeFiles).reduce((total, entries) => total + Object.keys(entries).length, 0);
+    }
+
+    /**
+     * Resolves the expected output file path for a locale.
+     *
+     * This mirrors the repository naming convention without attaching file
+     * metadata to locale content objects.
+     *
+     * @param locale - Target locale
+     * @returns Resolved locale file path
+     */
+    #resolveLocaleFilePath(locale: string): string {
+        const extension = this.#config.config.filePattern.replace("*", "");
+
+        return `${this.#config.config.localesDir}/${locale}${extension}`;
     }
 }

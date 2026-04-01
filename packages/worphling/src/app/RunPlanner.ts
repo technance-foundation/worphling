@@ -110,6 +110,25 @@ export class RunPlanner {
     }
 
     /**
+     * Collects locales expected to be written for the current plan.
+     *
+     * @param plan - Ordered execution plan
+     * @returns Sorted locale list scheduled for writing
+     */
+    collectLocalesToWrite(plan: Plan): Array<string> {
+        return [
+            ...new Set(
+                plan.actions
+                    .filter(
+                        (action): action is Extract<Plan["actions"][number], { type: "write-locale-file" }> =>
+                            action.type === "write-locale-file",
+                    )
+                    .map((action) => action.locale),
+            ),
+        ].sort();
+    }
+
+    /**
      * Builds the modified-key map for all target locales.
      *
      * @param sourceLocaleFile - Current source locale file

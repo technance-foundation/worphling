@@ -1,4 +1,4 @@
-import type { DiffResult, LocaleIssue, ReportFormat, RunReport, RunSummary } from "../types.js";
+import type { DiffResult, LocaleIssue, ReportFormat, RunOutputSummary, RunReport, RunSummary } from "../types.js";
 
 /**
  * Input required to build a structured run report.
@@ -35,6 +35,11 @@ interface RunReportBuildInput {
     writtenFileCount: number;
 
     /**
+     * Structured outputs collected during execution.
+     */
+    outputs: RunOutputSummary;
+
+    /**
      * Structured issues collected during validation or execution.
      */
     issues: Array<LocaleIssue>;
@@ -59,24 +64,26 @@ export class RunReporter {
      * @returns Structured run report
      */
     buildReport(input: RunReportBuildInput): RunReport {
+        const missingCount = this.#countFlatLocaleEntries(input.diffResult.missing);
+        const extraCount = this.#countFlatLocaleEntries(input.diffResult.extra);
+        const modifiedCount = this.#countFlatLocaleEntries(input.diffResult.modified);
+
         const summary: RunSummary = {
             command: input.command,
             sourceLocale: input.sourceLocale,
             targetLocales: [...input.targetLocales].sort(),
-            missingCount: this.#countFlatLocaleEntries(input.diffResult.missing),
-            extraCount: this.#countFlatLocaleEntries(input.diffResult.extra),
-            modifiedCount: this.#countFlatLocaleEntries(input.diffResult.modified),
+            missingCount,
+            extraCount,
+            modifiedCount,
             translatedCount: input.translatedCount,
             writtenFileCount: input.writtenFileCount,
-            hasChanges:
-                this.#countFlatLocaleEntries(input.diffResult.missing) > 0 ||
-                this.#countFlatLocaleEntries(input.diffResult.extra) > 0 ||
-                this.#countFlatLocaleEntries(input.diffResult.modified) > 0,
+            hasChanges: missingCount > 0 || extraCount > 0 || modifiedCount > 0,
             hasProviderFailure: input.hasProviderFailure,
         };
 
         return {
             summary,
+            outputs: input.outputs,
             issues: [...input.issues],
         };
     }
@@ -103,7 +110,7 @@ export class RunReporter {
      * @returns Markdown report
      */
     #serializeMarkdown(report: RunReport): string {
-        const { summary, issues } = report;
+        const { summary, outputs, issues } = report;
 
         const lines = [
             "# Worphling Run Report",
@@ -119,6 +126,15 @@ export class RunReporter {
             `- Translated keys: ${summary.translatedCount}`,
             `- Written files: ${summary.writtenFileCount}`,
             `- Has changes: ${summary.hasChanges ? "Yes" : "No"}`,
+            "",
+            "## Outputs",
+            "",
+            `- Written locale files: ${
+                outputs.writtenLocaleFiles.length > 0
+                    ? outputs.writtenLocaleFiles.map((filePath) => `\`${filePath}\``).join(", ")
+                    : "None"
+            }`,
+            `- Written snapshot file: ${outputs.writtenSnapshotFile ? `\`${outputs.writtenSnapshotFile}\`` : "None"}`,
             "",
             "## Issues",
             "",
