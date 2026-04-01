@@ -1,5 +1,18 @@
 # @technance/worphling
 
+## 4.1.0
+
+### Minor Changes
+
+- [`e03eecc`](https://github.com/technance-foundation/worphling/commit/e03eeccddb0c6f8b82c18bd5471a3e1246b587c6) Thanks [@inf1nite-lo0p](https://github.com/inf1nite-lo0p)! - Add structured run output reporting and decouple planning from filesystem concerns.
+
+  - Introduce `RunOutputSummary` to describe written locale files and snapshot output
+  - Include `outputs` in `RunReport` for CI and reporting use cases
+  - Move output computation from `RunPlanner` to `App` to keep planner domain-pure
+  - Add `collectLocalesToWrite` helper to `RunPlanner`
+  - Simplify `RunReporter` summary calculations and markdown output
+  - Centralize snapshot write decision using `shouldWriteSnapshot`
+
 ## 4.0.3
 
 ### Patch Changes
