@@ -320,7 +320,7 @@ if (issues.length > 0) {
 ### Errors
 
 - Validation problems and provider failures are returned in `issues`. If the provider fails on every attempt, you get a `provider-error` issue plus a `missing` issue per key
-- Invalid input (empty locales, identical locales, invalid `batchSize`, `concurrency`, or `maxRetries`) throws `ConfigValidationError`
+- Invalid input (empty locales, identical locales, a blank `provider.apiKey`, invalid `batchSize`, `concurrency`, or `maxRetries`) throws `ConfigValidationError`, before any request is sent
 
 ### Custom provider
 

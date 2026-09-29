@@ -191,6 +191,18 @@ describe("translateEntries", () => {
         await expect(translateEntries({ ...base, translation: { batchSize: 0 } })).rejects.toBeInstanceOf(ConfigValidationError);
     });
 
+    it("rejects a blank OpenAI API key before sending any request", async () => {
+        const base = { plugin: "none" as const, sourceLocale: "en", targetLocale: "fa", entries: { a: "A" } };
+
+        await expect(translateEntries({ ...base, provider: { name: "openai", apiKey: "" } })).rejects.toBeInstanceOf(
+            ConfigValidationError,
+        );
+        await expect(translateEntries({ ...base, provider: { name: "openai", apiKey: "   " } })).rejects.toBeInstanceOf(
+            ConfigValidationError,
+        );
+        expect(createCompletion).not.toHaveBeenCalled();
+    });
+
     it("wires the openai provider config and inline context into the request", async () => {
         createCompletion.mockResolvedValue({
             choices: [{ message: { content: JSON.stringify({ fa: { greeting: "سلام" } }) } }],

@@ -120,7 +120,7 @@ const DEFAULT_VALIDATION_CONFIG: ValidationConfig = {
  *
  * @param input - Entries, locales, provider, and optional overrides
  * @returns Translated entries and the issues found while producing them
- * @throws {ConfigValidationError} When locales or translation overrides are invalid
+ * @throws {ConfigValidationError} When locales, the provider API key, or translation overrides are invalid
  * @throws {UnsupportedPluginError} When the plugin is not supported
  * @throws {UnsupportedProviderError} When the provider config is not supported
  */
@@ -190,11 +190,11 @@ export async function translateEntries(input: TranslateEntriesInput): Promise<Tr
  *
  * @param input - Programmatic translation input
  * @returns Resolved runtime config
- * @throws {ConfigValidationError} When locales or translation overrides are invalid
+ * @throws {ConfigValidationError} When locales, the provider API key, or translation overrides are invalid
  */
 function resolveConfig(input: TranslateEntriesInput): ResolvedConfig {
-    assertLocale(input.sourceLocale, "sourceLocale");
-    assertLocale(input.targetLocale, "targetLocale");
+    assertNonEmptyString(input.sourceLocale, "sourceLocale");
+    assertNonEmptyString(input.targetLocale, "targetLocale");
 
     if (input.sourceLocale === input.targetLocale) {
         throw new ConfigValidationError('Invalid input: "sourceLocale" and "targetLocale" must differ.');
@@ -211,6 +211,10 @@ function resolveConfig(input: TranslateEntriesInput): ResolvedConfig {
     assertInteger(translation.batchSize, "translation.batchSize", 1);
     assertInteger(translation.maxRetries, "translation.maxRetries", 0);
     assertInteger(translation.concurrency, "translation.concurrency", 1);
+
+    if (!isTranslationProvider(input.provider)) {
+        assertNonEmptyString(input.provider.apiKey, "provider.apiKey");
+    }
 
     const provider: TranslationProviderConfig = isTranslationProvider(input.provider)
         ? { name: input.provider.name, apiKey: "" }
@@ -279,13 +283,13 @@ function isTranslationProvider(
 }
 
 /**
- * Asserts that a locale identifier is a non-empty string.
+ * Asserts that a required input value is a non-empty string.
  *
- * @param value - Locale value
+ * @param value - Input value
  * @param fieldName - Input field name used in the error message
- * @throws {ConfigValidationError} When the locale is empty
+ * @throws {ConfigValidationError} When the value is missing or blank
  */
-function assertLocale(value: unknown, fieldName: string): void {
+function assertNonEmptyString(value: unknown, fieldName: string): void {
     if (typeof value !== "string" || value.trim() === "") {
         throw new ConfigValidationError(`Invalid input: "${fieldName}" must be a non-empty string.`);
     }
