@@ -387,10 +387,10 @@ def print_text_report(payload: dict[str, Any]) -> None:
         location = ""
         if item.get("path"):
             location = f" | {item['path']}:{item.get('line') or ''}"
-        print(
-            f"{idx}. [{item['kind']}] {marker} @{item['author']}{location}\n"
-            f"   {item.get('excerpt', '')}\n"
-        )
+        # `body` is only present with --full-body; fall back to the excerpt.
+        text = item.get("body") or item.get("excerpt", "")
+        text = "\n".join(f"   {line}" for line in text.splitlines()) or "   "
+        print(f"{idx}. [{item['kind']}] {marker} @{item['author']}{location}\n{text}\n")
 
 
 def main() -> int:
