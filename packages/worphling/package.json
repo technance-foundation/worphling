@@ -45,7 +45,7 @@
     "scripts": {
         "build": "tsdown",
         "build:dev": "tsdown --watch",
-        "dev": "tsx watch src/index.ts",
+        "dev": "tsx watch src/cli/index.ts",
         "release": "pnpm build && npm publish",
         "start": "node dist/cli.mjs",
         "test": "vitest run",
