@@ -4,7 +4,7 @@
         "node": ">=24.14.0"
     },
     "bin": {
-        "worphling": "dist/index.mjs"
+        "worphling": "dist/cli.mjs"
     },
     "dependencies": {
         "@formatjs/icu-messageformat-parser": "catalog:",
@@ -24,7 +24,10 @@
         "vitest": "catalog:"
     },
     "exports": {
-        ".": "./dist/index.mjs"
+        ".": {
+            "types": "./dist/index.d.mts",
+            "import": "./dist/index.mjs"
+        }
     },
     "files": [
         "dist"
@@ -44,7 +47,7 @@
         "build:dev": "tsdown --watch",
         "dev": "tsx watch src/index.ts",
         "release": "pnpm build && npm publish",
-        "start": "node dist/index.mjs",
+        "start": "node dist/cli.mjs",
         "test": "vitest run",
         "typecheck": "tsc --noEmit",
         "prepublishOnly": "pnpm build"

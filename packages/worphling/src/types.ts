@@ -218,6 +218,14 @@ export interface TranslationConfig {
      * rules, tone, or domain terminology.
      */
     contextFile?: string;
+
+    /**
+     * Optional inline translation instructions.
+     *
+     * When `contextFile` is also set, the file content comes first, followed by
+     * this inline text.
+     */
+    context?: string;
 }
 
 /**
