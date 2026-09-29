@@ -240,7 +240,8 @@ worphling check --fail-on-warnings
         "maxRetries": 3,
         "concurrency": 2,
         "exactLength": false,
-        "contextFile": "./translation-context.md"
+        "contextFile": "./translation-context.md",
+        "context": "Use a formal tone."
     },
 
     "runtime": {
@@ -249,6 +250,92 @@ worphling check --fail-on-warnings
         "failOnWarnings": false
     }
 }
+```
+
+### Translation context
+
+Use `translation.contextFile` and/or `translation.context` to give the model extra instructions such as tone or glossary terms.
+
+- `contextFile` is a path to a text or Markdown file
+- `context` is an inline string
+- When both are set, the file content comes first, followed by the inline text, separated by a blank line
+- Empty or whitespace-only parts are ignored
+
+---
+
+## Programmatic API
+
+Worphling also exports its translation engine as a function. It works on plain objects and does not read or write any files.
+
+```ts
+import { translateEntries } from "@technance/worphling";
+
+const { translations, issues } = await translateEntries({
+    provider: { name: "openai", apiKey: process.env.OPENAI_API_KEY! },
+    plugin: "next-intl",
+    sourceLocale: "en",
+    targetLocale: "fa",
+    entries: {
+        greeting: "Hello {name}",
+        cta: "Read <link>the guide</link>",
+    },
+    context: "Use a formal tone.",
+});
+
+if (issues.length > 0) {
+    console.error(issues);
+}
+```
+
+### Input
+
+| Field                  | Required | Description                                                                         |
+| ---------------------- | -------- | ----------------------------------------------------------------------------------- |
+| `provider`             | yes      | `{ name: "openai", apiKey, model?, temperature? }` or a custom provider instance    |
+| `plugin`               | yes      | `"next-intl"` or `"none"`                                                           |
+| `sourceLocale`         | yes      | Locale the entries are written in                                                   |
+| `targetLocale`         | yes      | Locale to translate into (must differ from `sourceLocale`)                          |
+| `entries`              | yes      | Flat map of key to ICU message                                                      |
+| `context`              | no       | Extra translation instructions (tone, glossary)                                     |
+| `validation`           | no       | Partial validation overrides                                                        |
+| `translation`          | no       | `batchSize`, `maxRetries`, `concurrency`, `exactLength` overrides                   |
+| `logger`               | no       | Logger for diagnostics                                                              |
+
+### Result
+
+`translateEntries` returns `{ translations, issues }`.
+
+- `translations` is a flat map of key to translated message, containing only the requested keys
+- Keys the provider did not translate (omitted or empty) are left out and reported as `missing` issues
+- Entries that fail validation are still included in `translations`; the matching `issues` describe the problem
+- `issues` use the same shape as CLI issues, with `locale` set to `targetLocale`
+
+### Defaults
+
+- All structural checks are on: `preservePlaceholders`, `preserveIcuSyntax`, `preserveHtmlTags`
+- Missing keys are errors (`failOnMissingKeys: true`)
+- The logger is silent unless you pass one
+- With the `next-intl` plugin, tag validation is always on
+
+### Errors
+
+- Validation problems and provider failures are returned in `issues`. If the provider fails on every attempt, you get a `provider-error` issue plus a `missing` issue per key
+- Invalid input (empty locales, identical locales, a blank `provider.apiKey`, invalid `batchSize`, `concurrency`, or `maxRetries`) throws `ConfigValidationError`, before any request is sent
+
+### Custom provider
+
+`provider` can also be any object implementing `TranslationProviderContract`, which is handy for tests. A custom provider builds its own prompt, so `context` is not applied to it:
+
+```ts
+const provider = {
+    name: "openai" as const,
+    async translate(batch) {
+        return {
+            locale: batch.locale,
+            entries: Object.fromEntries(batch.entries.map((entry) => [entry.key, `[fa] ${entry.source}`])),
+        };
+    },
+};
 ```
 
 ---

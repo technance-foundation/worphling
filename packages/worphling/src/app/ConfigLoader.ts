@@ -252,6 +252,7 @@ export class ConfigLoader {
             concurrency: config.translation.concurrency ?? DEFAULT_TRANSLATION_CONCURRENCY,
             exactLength: config.translation.exactLength,
             contextFile: config.translation.contextFile,
+            context: config.translation.context,
         };
 
         const runtime: RuntimeConfig = {
@@ -395,6 +396,10 @@ export class ConfigLoader {
 
         if (translation.contextFile !== undefined && typeof translation.contextFile !== "string") {
             throw new ConfigValidationError('Invalid configuration: "translation.contextFile" must be a string when provided.');
+        }
+
+        if (translation.context !== undefined && typeof translation.context !== "string") {
+            throw new ConfigValidationError('Invalid configuration: "translation.context" must be a string when provided.');
         }
     }
 

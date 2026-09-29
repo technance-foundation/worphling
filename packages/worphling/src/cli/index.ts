@@ -13,8 +13,6 @@ import { ExitCode } from "../types.js";
 
 import { Cli } from "./Cli.js";
 
-export * from "../types.js";
-
 /**
  * Executes the Worphling CLI entrypoint.
  *

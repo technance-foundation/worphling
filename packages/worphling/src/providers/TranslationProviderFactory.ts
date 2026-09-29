@@ -18,7 +18,7 @@ export class TranslationProviderFactory {
      * @throws {UnsupportedProviderError} When the provider is not supported
      */
     create(config: ResolvedConfig, plugin: TranslationPluginContract, logger: Logger): TranslationProviderContract {
-        const contextInstructions = new TranslationContextRepository().read(config.translation.contextFile);
+        const contextInstructions = new TranslationContextRepository().resolve(config.translation);
 
         if (config.provider.name === "openai") {
             return new OpenAiTranslationProvider(config, plugin, logger, contextInstructions);
