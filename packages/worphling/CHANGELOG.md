@@ -1,5 +1,16 @@
 # @technance/worphling
 
+## 4.2.0
+
+### Minor Changes
+
+- [#35](https://github.com/technance-foundation/worphling/pull/35) [`db3e8aa`](https://github.com/technance-foundation/worphling/commit/db3e8aad17dd76878c65a79565daee5edaf2db51) Thanks [@mowhcen](https://github.com/mowhcen)! - Export a filesystem-free translation API and add inline translation context.
+
+  - Export `translateEntries` to translate flat ICU entries without touching the filesystem, returning `{ translations, issues }`
+  - Make the package root a side-effect-free library entry (`dist/index.mjs`) and move the CLI bin to `dist/cli.mjs`
+  - Export the Worphling error classes from the package root
+  - Add inline `translation.context` config option, merged after `translation.contextFile` content
+
 ## 4.1.0
 
 ### Minor Changes
